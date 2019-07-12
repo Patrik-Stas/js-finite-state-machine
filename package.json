@@ -1,0 +1,31 @@
+{
+  "name": "statemachine",
+  "version": "1.0.0",
+  "description": "State machine with modular persistence",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest test"
+  },
+  "files": [
+    "src"
+  ],
+  "author": "Patrik Staš",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/cli": "^7.4.3",
+    "@babel/core": "^7.4.3",
+    "@babel/node": "^7.2.2",
+    "@babel/preset-env": "^7.4.3",
+    "@types/jest": "^24.0.11",
+    "@types/node-persist": "0.0.33",
+    "babel-core": "^7.0.0-bridge.0",
+    "babel-jest": "^24.7.1",
+    "jest": "^23.6.0",
+    "jest-cli": "^24.7.1",
+    "node-persist": "^3.0.4",
+    "redis": "^2.8.0",
+    "sleep-promise": "^8.0.1",
+    "standard": "^12.0.1",
+    "winston": "^3.2.1"
+  }
+}
