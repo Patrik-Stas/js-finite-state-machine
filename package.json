@@ -1,7 +1,7 @@
 {
-  "name": "statemachine",
-  "version": "1.0.0",
-  "description": "State machine with modular persistence",
+  "name": "@patrikstas/finite-state-machine",
+  "version": "0.0.1",
+  "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
     "test": "jest test"
@@ -27,5 +27,9 @@
     "sleep-promise": "^8.0.1",
     "standard": "^12.0.1",
     "winston": "^3.2.1"
-  }
+  },
+  "repository": "https://github.com/Patrik-Stas/js-finite-state-machine",
+  "keywords": [
+    "state machine", "finite state machine", "fsm", "state", "machine"
+  ]
 }
