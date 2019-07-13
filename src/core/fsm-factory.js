@@ -1,4 +1,4 @@
-const { createStateMachine } = require('./state-machine')
+const { createStateMachine } = require('./fsm')
 
 module.exports.createStateMachineFactory = function createStateMachineFactory (storage, definition) {
   async function build (machineKey) {

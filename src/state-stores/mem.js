@@ -3,9 +3,9 @@ const assert = require('assert')
 module.exports.createInMemStateStorage = function createInMemStateStorage () {
   let storage = {}
 
-  function set (key, stateMachine) {
+  function set (key, value) {
     assert(typeof value === 'string')
-    storage[key] = stateMachine.serialize()
+    storage[key] = value
   }
 
   function get (key) {

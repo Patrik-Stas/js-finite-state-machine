@@ -1,6 +1,6 @@
 /* eslint-env jest */
 const { createInMemStateStorage } = require('../../src/state-stores/mem')
-const { createStateMachineFactory } = require('../../src/core/state-machine-factory')
+const { createStateMachineFactory } = require('../../src/core/fsm-factory')
 const { matterMachineDefinition } = require('./../common')
 
 let memStorage
@@ -28,9 +28,12 @@ describe('machine factory test', () => {
     const stateMachine1 = await machineFactory.build('machine1')
     const stateMachine2 = await machineFactory.build('machine2')
 
-    await stateMachine1.goToState('liquid')
-    await stateMachine2.goToState('liquid')
-    await stateMachine2.goToState('gas')
+    await stateMachine1.transitionStart('melt')
+    await stateMachine1.transitionFinish()
+    await stateMachine2.transitionStart('melt')
+    await stateMachine2.transitionFinish()
+    await stateMachine2.transitionStart('vaporize')
+    await stateMachine2.transitionFinish()
     const currentState1 = await stateMachine1.getState()
     const currentState2 = await stateMachine2.getState()
     // assert
@@ -42,7 +45,8 @@ describe('machine factory test', () => {
     // act
     const stateMachine1 = await machineFactory.build('machine1')
 
-    await stateMachine1.goToState('liquid')
+    await stateMachine1.transitionStart('melt')
+    await stateMachine1.transitionFinish()
     await stateMachine1.destroy()
     // assert
     const stateMachine1Recreated = await machineFactory.build('machine1')
