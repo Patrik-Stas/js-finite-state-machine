@@ -1,6 +1,6 @@
 {
   "name": "@patrikstas/finite-state-machine",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
@@ -12,16 +12,17 @@
   "author": "Patrik Staš",
   "license": "ISC",
   "devDependencies": {
-    "@babel/cli": "^7.4.3",
-    "@babel/core": "^7.4.3",
-    "@babel/node": "^7.2.2",
-    "@babel/preset-env": "^7.4.3",
+    "@babel/cli": "^7.5.5",
+    "@babel/core": "^7.5.5",
+    "@babel/node": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
     "@types/jest": "^24.0.11",
     "@types/node-persist": "0.0.33",
     "babel-core": "^7.0.0-bridge.0",
     "babel-jest": "^24.7.1",
     "jest": "^23.6.0",
     "jest-cli": "^24.7.1",
+    "mongodb": "^3.1.10",
     "node-persist": "^3.0.4",
     "redis": "^2.8.0",
     "sleep-promise": "^8.0.1",
@@ -30,6 +31,10 @@
   },
   "repository": "https://github.com/Patrik-Stas/js-finite-state-machine",
   "keywords": [
-    "state machine", "finite state machine", "fsm", "state", "machine"
+    "state machine",
+    "finite state machine",
+    "fsm",
+    "state",
+    "machine"
   ]
 }

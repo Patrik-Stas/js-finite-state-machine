@@ -1,27 +1,34 @@
 /* eslint-env jest */
 const { matterMachineDefinition } = require('./../common')
-
-const redis = require('redis')
+const util = require('util')
+const MongoClient = require('mongodb')
+const { createInMongoMachineGenerator } = require('../../src/core/factories/fsm-factory-mongo')
 const sleep = require('sleep-promise')
-const { createInRedisMachineGenerator } = require('../../src/core/factories/fsm-factory-redis')
 
 let stateMachine
 let machineId
 let generateTestcaseMachine
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
+const asyncMongoConnect = util.promisify(MongoClient.connect)
 
-let redisClient
+let mongoHost
+let mongoDatabase
+let collection
 
 beforeAll(async () => {
-  redisClient = redis.createClient(REDIS_URL)
-  await sleep(2000)
+  const suiteUtime = Math.floor(new Date() / 1)
+  mongoHost = await asyncMongoConnect(MONGO_URL)
+  mongoDatabase = await mongoHost.db(`UNIT-TEST-STATEMACHINE`)
+  collection = await mongoDatabase.collection(`suite${suiteUtime}`)
+  await collection.createIndex({ '_id': 1 })
 })
 
 beforeEach(async () => {
+  await sleep(1)
   const utime = Math.floor(new Date() / 1)
   machineId = `machine-${utime}`
-  generateTestcaseMachine = createInRedisMachineGenerator(matterMachineDefinition, redisClient)
+  generateTestcaseMachine = createInMongoMachineGenerator(matterMachineDefinition, collection)
   stateMachine = await generateTestcaseMachine(machineId)
 })
 

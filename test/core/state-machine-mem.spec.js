@@ -1,17 +1,16 @@
 /* eslint-env jest */
-const { createInMemStateStorage } = require('../../src/state-stores/mem')
-const { createStateMachine } = require('../../src/core/fsm')
+const { createInMemMachineGenerator } = require('../../src/core/factories/fsm-factory-mem')
 const { matterMachineDefinition } = require('./../common')
 
-let storage
 let stateMachine
 let machineId
+let generateTestcaseMachine
 
 beforeEach(async () => {
-  storage = createInMemStateStorage()
   const utime = Math.floor(new Date() / 1000)
   machineId = `machine-${utime}`
-  stateMachine = await createStateMachine(storage, machineId, matterMachineDefinition)
+  generateTestcaseMachine = createInMemMachineGenerator(matterMachineDefinition)
+  stateMachine = await generateTestcaseMachine(machineId)
 })
 
 describe('state machine with memory storage', () => {
@@ -30,14 +29,39 @@ describe('state machine with memory storage', () => {
 
   it('should create store record in storage with default values', async () => {
     // act
-    const serializedMachineData = await storage.get(machineId)
+    const state = await stateMachine.getState()
+    const history = await stateMachine.getHistory()
     // assert
-    expect(serializedMachineData).toBeDefined()
-    const machineData = JSON.parse(serializedMachineData)
-    expect(machineData.state).toBe('solid')
-    expect(machineData.transition).toBeNull()
-    expect(machineData.history).toBeDefined()
-    expect(machineData.history.length).toBe(0)
+    expect(state).toBe('solid')
+    expect(history).toBeDefined()
+    expect(history.length).toBe(0)
+  })
+
+  it('state machines from factory should have separate states', async () => {
+    // act
+    const stateMachine1 = await generateTestcaseMachine(`${machineId}-1`)
+    const stateMachine2 = await generateTestcaseMachine(`${machineId}-2`)
+
+    await stateMachine1.transitionStart('melt')
+    await stateMachine1.transitionFinish()
+    await stateMachine2.transitionStart('melt')
+    await stateMachine2.transitionFinish()
+    await stateMachine2.transitionStart('vaporize')
+    await stateMachine2.transitionFinish()
+    const currentState1 = await stateMachine1.getState()
+    const currentState2 = await stateMachine2.getState()
+    // assert
+    expect(currentState1).toBe('liquid')
+    expect(currentState2).toBe('gas')
+  })
+
+  it('should create machine if initial state if previous was destroyed', async () => {
+    await stateMachine.transitionStart('melt')
+    await stateMachine.transitionFinish()
+    await stateMachine.destroy()
+    // assert
+    const stateMachineRecreated = await generateTestcaseMachine(machineId)
+    expect(await stateMachineRecreated.getState()).toBe('solid')
   })
 
   it('should recognize states "solid" as tangible based on metadata', async () => {
@@ -60,7 +84,7 @@ describe('state machine with memory storage', () => {
 
   it('reloaded machine should have the same data as original', async () => {
     // act
-    const stateMachineReloaded = await createStateMachine(storage, machineId, matterMachineDefinition)
+    const stateMachineReloaded = await generateTestcaseMachine(machineId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getMachineData())
@@ -72,7 +96,7 @@ describe('state machine with memory storage', () => {
     // act
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
-    const stateMachineReloaded = await createStateMachine(storage, machineId, matterMachineDefinition)
+    const stateMachineReloaded = await generateTestcaseMachine(machineId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getMachineData())
@@ -92,7 +116,7 @@ describe('state machine with memory storage', () => {
       thrownError = err
     }
     // assert
-    expect(thrownError.toString().includes(`Loaded machine '${machineId}' and its found to be transitioning state which was not expected.`)).toBeTruthy()
+    expect(thrownError.toString()).toBe(`Error: Loaded machine and it's found to be transitioning state which was not expected.`)
   })
 
   it('should throw if state is requested while transitioning', async () => {
@@ -105,7 +129,7 @@ describe('state machine with memory storage', () => {
       thrownError = err
     }
     // assert
-    expect(thrownError.toString().includes(`Loaded machine '${machineId}' and its found to be transitioning state which was not expected.`)).toBeTruthy()
+    expect(thrownError.toString()).toBe(`Error: Loaded machine and it's found to be transitioning state which was not expected.`)
   })
 
   it('should recognize that loaded machine is transitioning', async () => {
@@ -114,14 +138,14 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
     await stateMachine.transitionStart('freeze')
-    const stateMachineReloaded = await createStateMachine(storage, machineId, matterMachineDefinition)
+    const stateMachineReloaded = await generateTestcaseMachine(machineId)
     try {
       await stateMachineReloaded.transitionStart('vaporize')
     } catch (err) {
       thrownError = err
     }
     // assert
-    expect(thrownError.toString().includes(`Loaded machine '${machineId}' and its found to be transitioning state which was not expected.`)).toBeTruthy()
+    expect(thrownError.toString()).toBe(`Error: Loaded machine and it's found to be transitioning state which was not expected.`)
   })
 
   it('should load existing machine', async () => {
@@ -132,7 +156,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionFinish()
     // assert
 
-    const stateMachineReloaded = await createStateMachine(storage, machineId, matterMachineDefinition)
+    const stateMachineReloaded = await generateTestcaseMachine(machineId)
     expect(await stateMachineReloaded.getState()).toBe('gas')
     expect(await stateMachineReloaded.isInState('gas')).toBeTruthy()
     const history = await stateMachineReloaded.getHistory(true)
@@ -173,7 +197,7 @@ describe('state machine with memory storage', () => {
     expect(await stateMachine.isInState('liquid')).toBeTruthy()
     // act
     await stateMachine.destroy()
-    stateMachine = await createStateMachine(storage, machineId, matterMachineDefinition)
+    stateMachine = await generateTestcaseMachine(machineId)
     // assert
     expect(await stateMachine.getState()).toBe('solid')
     expect(await stateMachine.isInState('solid')).toBeTruthy()
