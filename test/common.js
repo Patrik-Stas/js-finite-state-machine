@@ -1,4 +1,5 @@
 module.exports.matterMachineDefinition = {
+  type: 'matter',
   initialState: 'solid',
   states: [
     { name: 'solid', metadata: { 'tangible': true } },

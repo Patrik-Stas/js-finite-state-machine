@@ -4,7 +4,10 @@
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
-    "test": "jest test"
+    "test": "test:mem && test:mongo",
+    "test:mem": "STORAGE_TYPE=mem jest test",
+    "test:mongo": "STORAGE_TYPE=mongodb jest test",
+    "test:redis": "STORAGE_TYPE=redis jest test"
   },
   "files": [
     "src"
@@ -36,5 +39,8 @@
     "fsm",
     "state",
     "machine"
-  ]
+  ],
+  "dependencies": {
+    "uuid": "^3.3.2"
+  }
 }

@@ -5,6 +5,7 @@ const { matterMachineDefinition } = require('./../common')
 
 const simpleMatterDefinition = {
   initialState: 'solid',
+  name: 'matter',
   states: [
     { name: 'solid' },
     { name: 'liquid' },
@@ -23,6 +24,7 @@ describe('state machine definition utils', () => {
 
   it('should throw error if initial state is not defined', async () => {
     const definition = {
+      name: 'matter',
       states: [
         { name: 'gas' }
       ],
@@ -39,6 +41,7 @@ describe('state machine definition utils', () => {
 
   it('should throw error if initial state refers unknown state', async () => {
     const definition = {
+      name: 'matter',
       initialState: 'solid',
       states: [
         { name: 'gas' }
@@ -56,6 +59,7 @@ describe('state machine definition utils', () => {
 
   it('should throw error if transition refers unknown destination state', async () => {
     const definition = {
+      name: 'matter',
       initialState: 'solid',
       states: [
         { name: 'solid' },
@@ -77,6 +81,7 @@ describe('state machine definition utils', () => {
 
   it('should throw error if transition refers unknown source state', async () => {
     const definition = {
+      name: 'matter',
       initialState: 'solid',
       states: [
         { name: 'solid' },
@@ -98,6 +103,7 @@ describe('state machine definition utils', () => {
 
   it('should find full state by state name', async () => {
     const definition = {
+      name: 'matter',
       initialState: 'solid',
       states: [
         { name: 'gas', metadata: { label: 'foo' } },
@@ -115,6 +121,7 @@ describe('state machine definition utils', () => {
 
   it('should return undefined if name is not matching any state from state definition', async () => {
     const definition = {
+      name: 'matter',
       initialState: 'solid',
       states: [
         { name: 'solid', metadata: { label: 'bar' } }

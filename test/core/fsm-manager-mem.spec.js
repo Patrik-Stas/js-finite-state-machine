@@ -1,28 +1,55 @@
 /* eslint-env jest */
+const { createMemKeystore } = require('../../src/core/factories/fsm-manager-mem')
+const { createFsmManagerMem } = require('../../src/core/factories/fsm-manager-mem')
+const { createFsmManagerMdb } = require('../../src/core/factories/fsm-manager-mongo')
+const { createFsmManagerRedis } = require('../../src/core/factories/fsm-manager-redis')
 const { matterMachineDefinition } = require('./../common')
-
+const MongoClient = require('mongodb')
 const redis = require('redis')
-const sleep = require('sleep-promise')
-const { createInRedisMachineGenerator } = require('../../src/core/factories/fsm-factory-redis')
+const uuid = require('uuid')
+const util = require('util')
 
 let stateMachine
 let machineId
-let generateTestcaseMachine
+let fsmManager
+let createFsmManager
+let suiteRunId
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
-
-let redisClient
-
-beforeAll(async () => {
-  redisClient = redis.createClient(REDIS_URL)
-  await sleep(2000)
-})
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mem'
 
 beforeEach(async () => {
-  const utime = Math.floor(new Date() / 1)
-  machineId = `machine-${utime}`
-  generateTestcaseMachine = createInRedisMachineGenerator(matterMachineDefinition, redisClient)
-  stateMachine = await generateTestcaseMachine(machineId)
+  suiteRunId = `${uuid.v4()}`
+  if (STORAGE_TYPE === 'mem') {
+    // we are careful here to make sure that any fsmManagerMem created will share the same in-mem storage
+    let keystores = {}
+    createFsmManager = (machineDefinition, fsmNamespace) => {
+      if (!keystores[fsmNamespace]) {
+        keystores[fsmNamespace] = createMemKeystore()
+      }
+      return createFsmManagerMem(machineDefinition, keystores[fsmNamespace])
+    }
+  } else if (STORAGE_TYPE === 'mongodb') {
+    const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
+    const asyncMongoConnect = util.promisify(MongoClient.connect)
+    const mongoHost = await asyncMongoConnect(MONGO_URL)
+    const mongoDatabase = await mongoHost.db(`UNIT-TEST-STATEMACHINE`)
+    createFsmManager = async (machineDefinition, fsmNamespace) => {
+      const collection = await mongoDatabase.collection(fsmNamespace)
+      return createFsmManagerMdb(machineDefinition, collection)
+    }
+  } else if (STORAGE_TYPE === 'redis') {
+    const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+    const redisClient = redis.createClient(REDIS_URL)
+    createFsmManager = (machineDefinition, fsmNamespace) => {
+      return createFsmManagerRedis(machineDefinition, redisClient, fsmNamespace)
+    }
+  } else {
+    throw Error(`Unknown storage type '${STORAGE_TYPE}'.`)
+  }
+  fsmManager = await createFsmManager(matterMachineDefinition, suiteRunId)
+
+  machineId = `machine-${uuid.v4()}`
+  stateMachine = await fsmManager.loadMachine(machineId)
 })
 
 describe('state machine with memory storage', () => {
@@ -36,6 +63,8 @@ describe('state machine with memory storage', () => {
     expect(isSolidByDefault).toBeTruthy()
     expect(machineData.state).toBe('solid')
     expect(machineData.transition).toBe(null)
+    expect(machineData.name).toBe(matterMachineDefinition.name)
+    expect(machineData.version).toBe(matterMachineDefinition.version)
     expect(JSON.stringify(machineData.history)).toBe('[]')
   })
 
@@ -51,8 +80,8 @@ describe('state machine with memory storage', () => {
 
   it('state machines from factory should have separate states', async () => {
     // act
-    const stateMachine1 = await generateTestcaseMachine(`${machineId}-1`)
-    const stateMachine2 = await generateTestcaseMachine(`${machineId}-2`)
+    const stateMachine1 = await fsmManager.loadMachine(`${machineId}-1`)
+    const stateMachine2 = await fsmManager.loadMachine(`${machineId}-2`)
 
     await stateMachine1.transitionStart('melt')
     await stateMachine1.transitionFinish()
@@ -67,12 +96,32 @@ describe('state machine with memory storage', () => {
     expect(currentState2).toBe('gas')
   })
 
+  it('should return all managed state machines', async () => {
+    // act
+    const stateMachine2 = await fsmManager.loadMachine(`${machineId}-2`)
+    await stateMachine2.transitionStart('melt')
+    const machines = await fsmManager.getAllMachinesData()
+    // assert
+    expect(machines).toBeDefined()
+    expect(machines.length).toBe(2)
+    const loadedMachine = machines.find(m => m.id === `${machineId}`)
+    const loadedMachine2 = machines.find(m => m.id === `${machineId}-2`)
+    expect(loadedMachine).toBeDefined()
+    expect(loadedMachine2).toBeDefined()
+    expect(loadedMachine.machineData).toBeDefined()
+    expect(loadedMachine2.machineData).toBeDefined()
+    expect(loadedMachine.machineData.state).toBe('solid')
+    expect(loadedMachine.machineData.transition).toBe(null)
+    expect(loadedMachine2.machineData.state).toBe('solid')
+    expect(loadedMachine2.machineData.transition).toBe('melt')
+  })
+
   it('should create machine if initial state if previous was destroyed', async () => {
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
-    await stateMachine.destroy()
+    await fsmManager.destroyMachine(machineId)
     // assert
-    const stateMachineRecreated = await generateTestcaseMachine(machineId)
+    const stateMachineRecreated = await fsmManager.loadMachine(machineId)
     expect(await stateMachineRecreated.getState()).toBe('solid')
   })
 
@@ -85,7 +134,7 @@ describe('state machine with memory storage', () => {
     expect(stateDefinition.metadata.tangible).toBe(true)
   })
 
-  it('should transition from solid to liquid', async () => {
+  it('should transition from solid to liquid using start-finish transition', async () => {
     // act
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
@@ -94,9 +143,17 @@ describe('state machine with memory storage', () => {
     expect(await stateMachine.isInState('liquid')).toBeTruthy()
   })
 
+  it('should transition from solid to liquid', async () => {
+    // act
+    await stateMachine.doTransition('melt')
+    // assert
+    expect(await stateMachine.getState()).toBe('liquid')
+    expect(await stateMachine.isInState('liquid')).toBeTruthy()
+  })
+
   it('reloaded machine should have the same data as original', async () => {
     // act
-    const stateMachineReloaded = await generateTestcaseMachine(machineId)
+    const stateMachineReloaded = await fsmManager.loadMachine(machineId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getMachineData())
@@ -104,11 +161,25 @@ describe('state machine with memory storage', () => {
     expect(reloadedStringified).toBe(originalStringified)
   })
 
+  it('should throw error if machine is reloaded using fsm definition with different name', async () => {
+    let editedMachineDefinition = { ...matterMachineDefinition, type: `matter-type-edit-${uuid.v4()}` }
+    // act
+    const modifiedFsmManager = await createFsmManager(editedMachineDefinition, suiteRunId)
+    let thrownError
+    try {
+      await modifiedFsmManager.loadMachine(machineId)
+    } catch (err) {
+      thrownError = err
+    }
+    // assert
+    expect(thrownError.toString()).toBe(`Error: Loaded machine type '${matterMachineDefinition.type}' but was expecting to find '${editedMachineDefinition.type}'.`)
+  })
+
   it('reloaded machine should have the same data as original after transitioning', async () => {
     // act
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
-    const stateMachineReloaded = await generateTestcaseMachine(machineId)
+    const stateMachineReloaded = await fsmManager.loadMachine(machineId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getMachineData())
@@ -150,7 +221,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
     await stateMachine.transitionStart('freeze')
-    const stateMachineReloaded = await generateTestcaseMachine(machineId)
+    const stateMachineReloaded = await fsmManager.loadMachine(machineId)
     try {
       await stateMachineReloaded.transitionStart('vaporize')
     } catch (err) {
@@ -168,7 +239,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionFinish()
     // assert
 
-    const stateMachineReloaded = await generateTestcaseMachine(machineId)
+    const stateMachineReloaded = await fsmManager.loadMachine(machineId)
     expect(await stateMachineReloaded.getState()).toBe('gas')
     expect(await stateMachineReloaded.isInState('gas')).toBeTruthy()
     const history = await stateMachineReloaded.getHistory(true)
@@ -179,10 +250,21 @@ describe('state machine with memory storage', () => {
     expect(history[1].transition).toBe('vaporize')
   })
 
-  it('should return history of finalized transitions', async () => {
+  it('should return history of finalized start-finish transitions', async () => {
     // act
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
+
+    // assert
+    const history = await stateMachine.getHistory()
+    expect(history.length).toBe(1)
+    expect(history[0].state).toBe('solid')
+    expect(history[0].transition).toBe('melt')
+  })
+
+  it('should return history of finalized transitions', async () => {
+    // act
+    await stateMachine.doTransition('melt')
 
     // assert
     const history = await stateMachine.getHistory()
@@ -208,8 +290,8 @@ describe('state machine with memory storage', () => {
     expect(await stateMachine.getState()).toBe('liquid')
     expect(await stateMachine.isInState('liquid')).toBeTruthy()
     // act
-    await stateMachine.destroy()
-    stateMachine = await generateTestcaseMachine(machineId)
+    await fsmManager.destroyMachine(machineId)
+    stateMachine = await fsmManager.loadMachine(machineId)
     // assert
     expect(await stateMachine.getState()).toBe('solid')
     expect(await stateMachine.isInState('solid')).toBeTruthy()

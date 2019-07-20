@@ -18,7 +18,7 @@ When instance of machine is created, getState is called to load up current state
 is set in storage.
  */
 const { createFsmDefinitionWrapper } = require('./fsm-definition-wrapper')
-
+const assert = require('assert')
 /*
 The machine does not provide race condition guarantees. It's up to user to assure 2 instances of same machine
 are not created simultaneously (which might result in multiple conflicting storage writes).
@@ -27,23 +27,46 @@ If machine state in memory goes out of sync with data in storage, that would be 
 1 machine instance at time, that should not happen.
 
 If we implement memory-stateless state-machine and turn this to merely an interface to a
+
+We don't introduce any concept of ID on this level of abstraction - why? Because we don't want to put assumptions on
+how machines of certain type might be identified. Some machines might be identified by single key. Some might be
+identified by multiple keys. Others might be unordered set of keys.
  */
-module.exports.createStateMachine = async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, deleteFsm, fsmDefinition) {
+module.exports.createStateMachine = async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, fsmDefinition) {
   const defintionWrapper = createFsmDefinitionWrapper(fsmDefinition)
-  if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function' || typeof deleteFsm !== 'function') {
+  if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
     throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
   }
-  if (!await machineExistsInStorage()) {
-    const initialMachineState = {
+  assert(!!fsmDefinition)
+  const loadedOnInit = await loadAndDeserializeFsm()
+  if (loadedOnInit) {
+    if (loadedOnInit.type !== fsmDefinition.type) {
+      throw Error(`Loaded machine type '${loadedOnInit.type}' but was expecting to find '${fsmDefinition.type}'.`)
+    }
+  } else {
+    await saveMachineData({
+      type: fsmDefinition.type,
       state: fsmDefinition.initialState,
       transition: null,
       history: []
-    }
-    await validateAndSave(initialMachineState)
+    })
   }
 
-  async function machineExistsInStorage () {
-    return !!(await loadAndDeserializeFsm())
+  function validateMachineData (machineData) {
+    if (!machineData) {
+      throw Error(`Invalid machine data, it's null or undefined.`)
+    }
+    if (!machineData.state) {
+      throw Error(`Invalid machine data. Missing 'state' field.`)
+    }
+    if (machineData.history === null || machineData.history === undefined) {
+      throw Error(`Invalid machine data.  Field 'history' is null or undefined..`)
+    }
+    try {
+      assertIsValidState(machineData.state)
+    } catch (err) {
+      throw Error(`Invalid machine data. Machine state '${machineData.state}' is not valid against machine definition ${JSON.stringify(fsmDefinition)}.`)
+    }
   }
 
   /*
@@ -53,21 +76,8 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   Throws error if error occurs while persisting state.
   Thows error if loaded machine is found to be transitioning, unless explicitly allowed via expectTransition argument
    */
-  async function validateAndSave (machineData) {
-    if (!machineData) {
-      throw Error(`Can't persist machine data because it's null or undefined.`)
-    }
-    if (!machineData.state) {
-      throw Error(`Can't persist machine data, invalid format. Missing 'state' field.`)
-    }
-    if (machineData.history === null || machineData.history === undefined) {
-      throw Error(`Can't persist machine data, invalid format. Field 'history' is null or undefined..`)
-    }
-    try {
-      assertIsValidState(machineData.state)
-    } catch (err) {
-      throw Error(`Can't persist machine data, state '${machineData.state}' is not valid state.`)
-    }
+  async function saveMachineData (machineData) {
+    validateMachineData(machineData)
     try {
       await serializeAndSaveFsm(machineData)
     } catch (err) {
@@ -82,27 +92,14 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   Throw error if data is found to be corrupted.
   Thows error if loaded machine is found to be transitioning, unless explicitly allowed via expectTransition argument
    */
-  async function loadAndValidate (allowToBeInTransition = false) {
+  async function loadMachineData (allowToBeInTransition = false) {
     let machineData
     try {
       machineData = await loadAndDeserializeFsm()
     } catch (error) {
       throw Error(`Error loading machine: ${JSON.stringify(error)}`)
     }
-    if (!machineData) {
-      throw Error(`Error loading machine. Machine not found.`)
-    }
-    if (!machineData.state) {
-      throw Error(`Loaded machine, but data are corrupted. Undefined machine state.`)
-    }
-    try {
-      assertIsValidState(machineData.state)
-    } catch (err) {
-      throw Error(`Loaded machine but data are corrupted. Machine state '${machineData.state}' is not valid.`)
-    }
-    if (machineData.history === null || machineData.history === undefined) {
-      throw Error(`Loaded machine but data are corrupted. Field 'history' is null or undefined.`)
-    }
+    validateMachineData(machineData)
     if (!allowToBeInTransition && machineData.transition) {
       throw Error(`Loaded machine and it's found to be transitioning state which was not expected.`)
     }
@@ -115,7 +112,7 @@ module.exports.createStateMachine = async function createStateMachine (serialize
    */
   async function isInState (expected) {
     assertIsValidState(expected)
-    const machine = await loadAndValidate()
+    const machine = await loadMachineData()
     if (machine.transition) {
       return false // machine is not in state, it's in transition
     }
@@ -129,11 +126,31 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   that machine is not in one particular state, but in the middle of certain transition
  */
   async function getState () {
-    const machine = await loadAndValidate()
+    const machine = await loadMachineData()
     if (machine.transition) {
       throw Error(`Can't determine current state because machine is transitioning.`)
     }
     return machine.state
+  }
+
+  async function canDoTransition (transition) {
+    const machine = await loadMachineData()
+    return defintionWrapper.isValidTransition(machine.state, transition)
+  }
+
+  async function doTransition (transition) {
+    assertIsValidTransititon(transition)
+    const machine = await loadMachineData()
+    const fromState = machine.state
+    if (await defintionWrapper.isValidTransition(fromState, transition)) {
+      const { name: newState } = await defintionWrapper.getStateAfterTransition(fromState, transition)
+      machine.state = newState
+      machine.transition = null
+      machine.history.push({ state: fromState, transition })
+      await saveMachineData(machine)
+    } else {
+      throw Error(`Transition '${transition}' from current state '${fromState}' is invalid.`)
+    }
   }
 
   /*
@@ -144,11 +161,11 @@ module.exports.createStateMachine = async function createStateMachine (serialize
    */
   async function transitionStart (transition) {
     assertIsValidTransititon(transition)
-    const machine = await loadAndValidate()
+    const machine = await loadMachineData()
     const fromState = machine.state
     if (await defintionWrapper.isValidTransition(fromState, transition)) {
       machine.transition = transition
-      await validateAndSave(machine)
+      await saveMachineData(machine)
     } else {
       throw Error(`Transition '${transition}' from current state '${fromState}' is invalid.`)
     }
@@ -162,7 +179,7 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   Throws if error occurs persisting machine with updated state
    */
   async function transitionFinish () {
-    const machine = await loadAndValidate(true)
+    const machine = await loadMachineData(true)
     if (!machine.transition) {
       throw Error(`Machine is not currently transitioning. There's no transition to be finished.`)
     }
@@ -173,11 +190,7 @@ module.exports.createStateMachine = async function createStateMachine (serialize
     machine.history.push({ state: machine.state, transition: machine.transition })
     machine.state = newState
     machine.transition = null
-    await validateAndSave(machine)
-  }
-
-  async function destroy () {
-    await deleteFsm()
+    await saveMachineData(machine)
   }
 
   /*
@@ -226,7 +239,7 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   }
 
   async function getHistory () {
-    const machineData = await loadAndValidate(true)
+    const machineData = await loadMachineData(true)
     return machineData.history
   }
 
@@ -235,12 +248,14 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   }
 
   async function getMachineData () {
-    const machineData = await loadAndValidate(true)
+    const machineData = await loadMachineData(true)
     return { ...machineData }
   }
 
   return {
     getState,
+    canDoTransition,
+    doTransition,
     transitionStart,
     transitionFinish,
     isInState,
@@ -248,7 +263,6 @@ module.exports.createStateMachine = async function createStateMachine (serialize
     assertInSomeState,
     getHistory,
     getDefinitionWrapper,
-    destroy,
     getMachineData
   }
 }
