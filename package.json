@@ -1,10 +1,10 @@
 {
   "name": "@patrikstas/finite-state-machine",
-  "version": "0.0.3",
+  "version": "1.0.1",
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
-    "test": "test:mem && test:mongo",
+    "test": "npm run test:mem && npm run test:mongo && npm run test:redis",
     "test:mem": "STORAGE_TYPE=mem jest test",
     "test:mongo": "STORAGE_TYPE=mongodb jest test",
     "test:redis": "STORAGE_TYPE=redis jest test"
@@ -30,7 +30,8 @@
     "redis": "^2.8.0",
     "sleep-promise": "^8.0.1",
     "standard": "^12.0.1",
-    "winston": "^3.2.1"
+    "winston": "^3.2.1",
+    "uuid": "^3.3.2"
   },
   "repository": "https://github.com/Patrik-Stas/js-finite-state-machine",
   "keywords": [
@@ -39,8 +40,5 @@
     "fsm",
     "state",
     "machine"
-  ],
-  "dependencies": {
-    "uuid": "^3.3.2"
-  }
+  ]
 }

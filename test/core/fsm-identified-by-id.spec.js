@@ -1,8 +1,8 @@
 /* eslint-env jest */
-const { createMemKeystore } = require('../../src/core/factories/fsm-manager-mem')
-const { createFsmManagerMem } = require('../../src/core/factories/fsm-manager-mem')
-const { createFsmManagerMdb } = require('../../src/core/factories/fsm-manager-mongo')
-const { createFsmManagerRedis } = require('../../src/core/factories/fsm-manager-redis')
+const { createMemKeystore } = require('../../src/core/fsm-storage/fsm-manager-mem')
+const { createFsmManagerMem } = require('../../src/core/fsm-storage/fsm-manager-mem')
+const { createFsmManagerMdb } = require('../../src/core/fsm-storage/fsm-manager-mongo')
+const { createFsmManagerRedis } = require('../../src/core/fsm-storage/fsm-manager-redis')
 const { matterMachineDefinition } = require('./../common')
 const MongoClient = require('mongodb')
 const redis = require('redis')

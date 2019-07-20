@@ -1,5 +1,6 @@
 # Javascript Finite State Machine
-Lightweight Javascript finite state machine implementation with modular persistence. 
+Pretty simplistic Finite State Machines (FSMs) with modular state persistence. No callbacks, triggers, just
+doing transitions, checking the rules, persisting and loading the states. 
 
 - **Where do you want to store state of your state machines?** Memory? Redis? Mongo? Elsewhere? Wherever you like!
 
@@ -26,19 +27,19 @@ Example:
 const semaphoreDefinition = {
   initialState: 'off',
   states: [
-    { name: 'off', metadata: { 'can-pass': false } },
-    { name: 'red', metadata: { 'can-pass': false } },
+    { name: 'off',    metadata: { 'can-pass': false } },
+    { name: 'red',    metadata: { 'can-pass': false } },
     { name: 'orange', metadata: { 'can-pass': false } },
-    { name: 'green', metadata: { 'can-pass': true } }
+    { name: 'green',  metadata: { 'can-pass': true } }
   ],
   transitions: [
-    { name: 'next', from: 'red', to: 'orange' },
-    { name: 'next', from: 'orange', to: 'green' },
-    { name: 'next', from: 'green', to: 'red' },
-    { name: 'disable', from: 'red', to: 'off' },
+    { name: 'next',    from: 'red',    to: 'orange' },
+    { name: 'next',    from: 'orange', to: 'green' },
+    { name: 'next',    from: 'green',  to: 'red' },
+    { name: 'disable', from: 'red',    to: 'off' },
     { name: 'disable', from: 'orange', to: 'off' },
-    { name: 'disable', from: 'green', to: 'off' },
-    { name: 'enable', from: 'off', to: 'red' }
+    { name: 'disable', from: 'green',  to: 'off' },
+    { name: 'enable',  from: 'off',    to: 'red' }
   ]
 }
 ```
@@ -138,7 +139,47 @@ Semaphore1 is in state red.
 Reloaded Semaphore1 is in state red.
 ```
 
+This seems like a good place to warn you about a terrible trap! Race conditions! Node event loop is running
+in a single thread, but that doesn't mean race conditions can't happen when there's IO involved. How? Let's see.
+ ```javascript
+ async function runExample() {
+   let memStore = createMemKeystore()
+   const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
+   let sema1 = await fsmManager.loadMachine('id1')
+   await sema1.doTransition('enable')
+   let sema2 = await fsmManager.loadMachine('id1')
+   // though semi1 and semi2 are stateless and all data is always retrieved from storage
+   // we do have 2 representatives of the same machine. hmmmmmmm. 
+   sema1.doTransition('next')
+   sema2.doTransition('disable')
+ }
+ runExample()
+ ```
+ When you try to do transition, the machine always checks its current state in storage, checks that
+ the requested transition is doable from that state and if yes, it performs the transition and changes
+ current state.
+ In ideal case, the machine will first run next transition and then it will be disabled. But what if:
+ - execution of `next` begins. It check current state and it's `red`. `next` is valid transition into `orange`.
+ - execution of `disable` reads current data before state in storage changes to `orange`. it seems that 
+ `disable` is valid transition from state `red` into `off`. 
+ - This is where trouble beings. Because transitions are not atomic (2 io operations: read current state, write updated state),
+ we have now 2 simultaneous transitions running at the same time. 
+ - This might cause invalid transition order and inconsistent transition history records. Assuming that
+ update of `disable` transition reaches database first (absolutely possible), we'll end up with following
+ transition history 
+ ```
+off -> enable
+red -> disable
+red -> next
+``` 
+and state `orange`. The history of transitions is inconsistent and we can't really tell what happened.
 
+In this example, the problem was pretty obvious. But if you are changing states of machines as results
+of HTTP Requests hitting up your server, described scenario might be harder to see. 
+
+The bottom line is that this library doesn't handle race conditions and you need to take care of that yourself
+using some sort of locking mechanism. You need to assure atomicity of a single state machine updates yourself.  
+ 
 # History
 ```javascript
 async function runExample() {
@@ -165,5 +206,58 @@ runExample()
 ```
 
 # Using different storages
- 
+The whole thing becomes more interesting when you can easily plug in completely different storage into
+your machines! As've been said before, the module comes with 3 reference implementations of storage layer.
+We've been using in-memory storage in previously example. Let's now try Mongo and Redis.
+
+#### Mongo storage
+```javascript
+async function runExample() {
+  const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
+  const asyncMongoConnect = util.promisify(MongoClient.connect)
+  const mongoHost = await asyncMongoConnect(MONGO_URL)
+  const mongoDatabase = await mongoHost.db(`UNIT-TEST-STATEMACHINE`)
+  const collection = await mongoDatabase.collection('FSM-DEMO')
+  return createFsmManagerMdb(semaphoreDefinition, collection)
+  
+  // and we can use it exactly like we did previously
+  let sema1 = await fsmManager.loadMachine('id1')
+  await sema1.doTransition('enable')
+  sema1state = await sema1.getState()
+  console.log(`Semaphore1 is in state ${sema1state}.`)
+    
+}
+runExample()
+```
+
+#### Redis storage
+```javascript
+async function runExample() {
+  const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
+  const redisClient = redis.createClient(REDIS_URL)
+  return createFsmManagerRedis(semaphoreDefinition, redisClient, 'fsm-demo')   
+  
+  // and we can use it exactly like we did previously
+  let sema1 = await fsmManager.loadMachine('id1')
+  await sema1.doTransition('enable')
+  sema1state = await sema1.getState()
+  console.log(`Semaphore1 is in state ${sema1state}.`)
+}
+runExample()
+```
+
+## Tweaking storage for your needs
+All provided storage implementations share the same interface, but it's very likely you will have just
+a slightly different needs. Maybe you want to organize the data in database in a different way, or maybe
+you want to identify each machine by 2 keys, instead of only single id.
+
+In that case I encourage you to look into `src/core/fsm-storage` reference implementations and use them
+as starters for your implementations. 
+
+## Digging deeper
+Please take look at `test/core/fsm-identified-by-id.spec.js` to see more examples for deeper understanding
+of this FSM implementation.
+
+
+
 
