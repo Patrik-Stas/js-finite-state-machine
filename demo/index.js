@@ -82,6 +82,27 @@ async function start () {
   sema1state = await sema1.getState()
   console.log(`Semaphore1 is in state ${sema1state}.`)
 
+  await sema1.transitionStart('next')
+  // However, you can inspect all data of a machine as it's stored using following
+  const machineData = await sema1.getMachineData()
+  console.log(`Full machine data as it's stored in storage: ${JSON.stringify(machineData, null, 2)}`)
+  //   Full machine data as it's stored in storage:
+  //   {
+  //     "state": "orange",
+  //     "transition": "next",
+  //     "history": [
+  //        {
+  //          "state": "off",
+  //          "transition": "enable"
+  //        },
+  //        {
+  //          "state": "red",
+  //          "transition": "next"
+  //        }
+  //   ]
+  // }
+  await sema1.transitionFinish()
+
   // if you now reload machine 'semaphore' again, you'll in fact load the same machine.
   const sema1Reloaded = await fsmManager.loadMachine('semaphore1')
   const history = await sema1Reloaded.getHistory()
@@ -94,28 +115,15 @@ async function start () {
   //   {
   //     "state": "red",
   //     "transition": "next"
+  //   },
+  //   {
+  //     "state": "orange",
+  //     "transition": "next"
   //   }
+  // ]
 
   // History contains only transition which has been finalized. If you call getHistory while machine is
   // transitioning, the transition taking place won't be listed in history because it has not yet been finalized.
 }
 
-// start()
-async function runExample () {
-  let memStore = createMemKeystore()
-  const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-  const sema1 = await fsmManager.loadMachine('id1')
-  let sema1state = await sema1.getState()
-  console.log(`Semaphore1 is in state ${sema1state}.`)
-
-  // There's also option to do transition in 2 steps. This might come handy if you can't
-  // perform related state changes atomically.
-  await sema1.transitionStart('enable')
-  await sleep(100) // do some IO operations
-  // sema1.getState() this would throw, machine state is not clear as its currently transitioning
-  // sema1.doTransition('next') this would throw, because machine is already transitioning
-  await sema1.transitionFinish()
-  sema1state = await sema1.getState()
-  console.log(`Semaphore1 is in state ${sema1state}.`)
-}
-runExample()
+start()

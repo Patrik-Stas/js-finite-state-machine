@@ -1,20 +1,44 @@
 # Javascript Finite State Machine
-Pretty simplistic Finite State Machines (FSMs) with modular state persistence. No callbacks, triggers, just
-doing transitions, checking the rules, persisting and loading the states. 
+Pretty simplistic Finite State Machines (FSMs) with modular state persistence.  No callbacks, 
+triggers, just doing transitions, checking the rules, persisting and loading the states. 
 
-- **Where do you want to store state of your state machines?** Memory? Redis? Mongo? Elsewhere? Wherever you like!
+- **Where do you want to store state of your state machines?** Memory? Redis? Mongo? 
+Elsewhere? Wherever you like!
 
-- **How do you want to manage and identify your state machines?** Single key? Multiple keys? Ordered set? However you like.
+- **How do you want to manage and identify your state machines?** Single key? 
+Multiple keys? Ordered set? However you like.
 
-The state machine can work with any data layer, however this module comes with batteries included. There's
-3 storage implementations
+The state machine can work with any data layer, however this module comes with batteries 
+included. 3 storage implementations are included in the module
 - memory
 - redis
 - mongodb
 
-whereas each identifies machines by single ID.  
+Each of these implementations identifies machines by single id.
 
 But let's take a step back and star from scratch, shall we?
+
+# Installation
+```
+npm install @patrikstas/finite-state-machine
+```
+or 
+```
+yarn add @patrikstas/finite-state-machine
+```
+
+# Tutorial
+You have 2 options:
+1. install the module and start using it in your project based on examples bellow,
+2. or clone repo, try to run demo and examples below
+
+If you decide to go for the second option, this is how you can run demo:
+```bash
+git clone https://github.com/Patrik-Stas/js-finite-state-machine.git
+cd  js-finite-state-machine
+npm install
+npm run demo
+```
 
 ## Defining state machine
 First we need to specify our state machine. Our state machines are defined by:
@@ -56,7 +80,12 @@ Okay, let's first create some in-memory state machine.
 ```javascript
 async function runExample() {
   let memStore = createMemKeystore()
+  // we are using the the machine definition 'semaphoreDefinition' defined above
   const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
+  
+  // creates object representing state machine identified by ID 'id1' in the storage
+  // if no machine 'id1' exists, machine is created, starting in the state 'initialState' 
+  // in machine definition
   const sema1 = await fsmManager.loadMachine('id1')
   console.log(await sema1.getState())
 }
@@ -71,37 +100,40 @@ async function runExample() {
   let memStore = createMemKeystore()
   const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
   const sema1 = await fsmManager.loadMachine('id1')
-  console.log(await sema1.getState())
+  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
   
-  // function doTransition(transitionName) invokes transitions. If the transition is valid according to
-  // provided FSM definition, machine changes its state.
+  // function doTransition(transitionName) invokes transitions. If the transition 
+  // is valid according to provided FSM definition, machine changes its state.
   await sema1.doTransition('enable')
-  sema1state = await sema1.getState()
-  console.log(`Semaphore1 is in state ${sema1state}.`)
+  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
 }
 runExample()
+```
+This will print
+```
+Semaphore1 is in state off.
+Semaphore1 is in state red.
 ```
 
 
 ## 2 step transitioning
-You can choose to perform transitions in 2 steps. First start of transition and later finalizing started transition.
+You can choose to perform transitions in 2 steps. First start of transition and later 
+finalizing started transition.
 ```javascript
 async function runExample () {
   let memStore = createMemKeystore()
   const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
   const sema1 = await fsmManager.loadMachine('id1')
-  let sema1state = await sema1.getState()
-  console.log(`Semaphore1 is in state ${sema1state}.`)
+  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
 
-  // There's also option to do transition in 2 steps. This might come handy if you can't
-  // perform related state changes atomically.
+  // There's also option to do transition in 2 steps. This might come handy 
+  // if you can't perform related state changes atomically.
   await sema1.transitionStart('enable')
   await sleep(100) // do some IO operations
   // sema1.getState() this would throw, machine state is not clear as its currently transitioning
   // sema1.doTransition('next') this would throw, because machine is already transitioning
   await sema1.transitionFinish()
-  sema1state = await sema1.getState()
-  console.log(`Semaphore1 is in state ${sema1state}.`)
+  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
 }
 runExample()
 ```
@@ -112,8 +144,9 @@ Semaphore1 is in state red.
 ```
 
 # Reloading 
-As FSM Manager handles machine persistence, you can create machine, do some transitions and forget about.
-Then later ask FSM Manager for the machine with the same ID and you have it back! 
+As FSM Manager handles machine persistence, you can create machine, 
+do some transitions  and forget about. Then later ask FSM Manager for 
+the machine with the same ID and you have it back! 
 ```javascript
 async function runExample() {
   let memStore = createMemKeystore()
@@ -140,7 +173,8 @@ Reloaded Semaphore1 is in state red.
 ```
 
 This seems like a good place to warn you about a terrible trap! Race conditions! Node event loop is running
-in a single thread, but that doesn't mean race conditions can't happen when there's IO involved. How? Let's see.
+in a single thread, but that doesn't mean race conditions can't happen when there's IO involved. 
+How? Let's see.
  ```javascript
  async function runExample() {
    let memStore = createMemKeystore()
@@ -148,8 +182,8 @@ in a single thread, but that doesn't mean race conditions can't happen when ther
    let sema1 = await fsmManager.loadMachine('id1')
    await sema1.doTransition('enable')
    let sema2 = await fsmManager.loadMachine('id1')
-   // though semi1 and semi2 are stateless and all data is always retrieved from storage
-   // we do have 2 representatives of the same machine. hmmmmmmm. 
+   // the objects semi1 and semi2 themselves are stateless and all data is always  
+   // retrieved from storage we do have 2 representatives of the same machine. hmmm. 
    sema1.doTransition('next')
    sema2.doTransition('disable')
  }
@@ -159,11 +193,12 @@ in a single thread, but that doesn't mean race conditions can't happen when ther
  the requested transition is doable from that state and if yes, it performs the transition and changes
  current state.
  In ideal case, the machine will first run next transition and then it will be disabled. But what if:
- - execution of `next` begins. It check current state and it's `red`. `next` is valid transition into `orange`.
+ - execution of `next` begins. It check current state and it's `red`. `next` is valid transition 
+ into `orange`.
  - execution of `disable` reads current data before state in storage changes to `orange`. it seems that 
  `disable` is valid transition from state `red` into `off`. 
- - This is where trouble beings. Because transitions are not atomic (2 io operations: read current state, write updated state),
- we have now 2 simultaneous transitions running at the same time. 
+ - This is where trouble beings. Because transitions are not atomic (2 io operations: read current 
+ state, write updated state), we have now 2 simultaneous transitions running at the same time. 
  - This might cause invalid transition order and inconsistent transition history records. Assuming that
  update of `disable` transition reaches database first (absolutely possible), we'll end up with following
  transition history 
@@ -177,8 +212,9 @@ and state `orange`. The history of transitions is inconsistent and we can't real
 In this example, the problem was pretty obvious. But if you are changing states of machines as results
 of HTTP Requests hitting up your server, described scenario might be harder to see. 
 
-The bottom line is that this library doesn't handle race conditions and you need to take care of that yourself
-using some sort of locking mechanism. You need to assure atomicity of a single state machine updates yourself.  
+The bottom line is that this library doesn't handle race conditions and you need to take care of 
+that yourself using some sort of locking mechanism. You need to assure atomicity of a single state 
+machine updates yourself.  
  
 # History
 ```javascript
@@ -206,9 +242,9 @@ runExample()
 ```
 
 # Using different storages
-The whole thing becomes more interesting when you can easily plug in completely different storage into
-your machines! As've been said before, the module comes with 3 reference implementations of storage layer.
-We've been using in-memory storage in previously example. Let's now try Mongo and Redis.
+The whole thing becomes more useful once we start to use persistent storage implementations!
+The module comes with 3 reference implementations of storage layer - memory, MongoDB and Redis.
+We've previously used in-memory storage for case of simplicity. Let's try Mongo and Redis.
 
 #### Mongo storage
 ```javascript
@@ -223,8 +259,7 @@ async function runExample() {
   // and we can use it exactly like we did previously
   let sema1 = await fsmManager.loadMachine('id1')
   await sema1.doTransition('enable')
-  sema1state = await sema1.getState()
-  console.log(`Semaphore1 is in state ${sema1state}.`)
+  console.log(`Semaphore1 is in state ${await sema1.getState()}.`)
     
 }
 runExample()
@@ -240,8 +275,7 @@ async function runExample() {
   // and we can use it exactly like we did previously
   let sema1 = await fsmManager.loadMachine('id1')
   await sema1.doTransition('enable')
-  sema1state = await sema1.getState()
-  console.log(`Semaphore1 is in state ${sema1state}.`)
+  console.log(`Semaphore1 is in state ${await sema1.getState()}.`)
 }
 runExample()
 ```

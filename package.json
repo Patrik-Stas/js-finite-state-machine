@@ -1,9 +1,10 @@
 {
   "name": "@patrikstas/finite-state-machine",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
+    "demo": "node demo/index.js",
     "test": "npm run test:mem && npm run test:mongo && npm run test:redis",
     "test:mem": "STORAGE_TYPE=mem jest test",
     "test:mongo": "STORAGE_TYPE=mongodb jest test",
