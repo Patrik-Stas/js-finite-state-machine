@@ -1,6 +1,6 @@
 {
   "name": "@patrikstas/finite-state-machine",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
