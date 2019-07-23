@@ -24,3 +24,81 @@ based on its results, the systems shuts down, leaving the entity in actually inc
 2. Race conditions - if two routines are executing in parallel, operating against the same resource / state machine,
 both persist 2 different states which rewrite each other. This can be mitigated by locks. 
 
+
+# Operations vs transitions
+In applications, sometimes you execute a procedure which you know will maybe attempt one of several operations. 
+Let's see on example. We have application where user uploads a document and then an admin has to approve or reject
+the document. 
+
+```javascript
+
+init   ------<upload>----->  document-pending   ------<admin approves>-----> approve
+                                       |
+                                       +--------------<admin rejects>--------> reject 
+
+```
+
+So when you write the approval/rejection 
+... loking at above, the problem is maybe not in knowing which one of N transitions it will be, but rather in 
+desire to check possibility of transitions before trying to execute code required for determining transition / required
+for doing a transition
+
+`a ----Q--- > b`
+
+But what if, in order to do Q you have to do expensive computation based of which you decide whether you go to Q or not.
+But if you are not in state letting you do Q, why would you even try do that computation when it's already obvious as
+impossible by looking at current state machine graph?
+
+The thing is sometimes you have bussines logic routine which:
+- it can execute 1 of N transitions and you don't know which one it will be ahead
+- it might execute transition, or might not - which is quite common and you might want to keep your machine simplistic with minimum loops
+
+
+# Loop minimization
+- Should every failed attempt to do transition be represented as loop? For example, if a transition is conditioned by 
+an argument value passed by user (only do transition if `FOO > 1000`). Then if `FOO=999`, should this be represented by 
+loop transition? It depends - probably only if it is important for you to track that such event happened. Otherwise 
+you can just do nothing. 
+
+
+
+# FSM Definition format
+Currently we have
+```javascript
+matterMachineDefinition = {
+  type: 'matter',
+  initialState: 'solid',
+  states: [
+    { name: 'solid',  metadata: { 'tangible': true } },
+    { name: 'liquid', metadata: { 'tangible': true } },
+    { name: 'gas',    metadata: { 'tangible': false } }
+  ],
+  transitions: [
+    { name: 'melt',     from: 'solid', to: 'liquid' },
+    { name: 'freeze',   from: 'liquid', to: 'solid' },
+    { name: 'vaporize', from: 'liquid', to: 'gas' },
+    { name: 'condense', from: 'gas', to: 'liquid' }
+  ]
+}
+```
+it would probably be practical to use maps instead of arrays
+```javascript
+matterMachineDefinition = {
+  type: 'matter',
+  initialState: 'solid',
+  states: {
+    solid:  { 'tangible': true }, 
+    liquid: { 'tangible': true }, 
+    gas:    { 'tangible': false }
+  },
+  transitions: {
+    melt:     { from: 'solid',  to: 'liquid' },
+    freeze:   { from: 'liquid', to: 'solid' },
+    vaporize: { from: 'liquid', to: 'gas' },
+    condense: { from: 'gas',    to: 'liquid' }
+  }
+}
+
+# And now we will be able to refer states from code and easily refactor and modify definitions!
+matterMachineDefinition.states.gas 
+``` 

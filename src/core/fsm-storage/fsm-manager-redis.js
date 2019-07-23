@@ -7,7 +7,7 @@ module.exports.createFsmManagerRedis = function createFsmManagerRedis (definitio
   const redishgetall = util.promisify(redisClient.hgetall).bind(redisClient)
   const redisdel = util.promisify(redisClient.del).bind(redisClient)
 
-  async function loadMachine (machineKey) {
+  async function _generateMachineInstance (machineKey) {
     const saveFsm = async (machineData) => {
       const serialized = JSON.stringify(machineData)
       await redishset(`fsm-${namespace}`, `${machineKey}`, serialized)
@@ -18,6 +18,38 @@ module.exports.createFsmManagerRedis = function createFsmManagerRedis (definitio
     }
 
     return createStateMachine(saveFsm, loadFsm, definition)
+  }
+
+  /*
+  Returns true if machine exists
+  Returns false if machine does not exist
+   */
+  async function machineExists (machineKey) {
+    return redishget(`fsm-${namespace}`, machineKey)
+  }
+
+  /*
+  Creates closure representing the machine.
+  Throws if machine does not already exists.
+   */
+  async function loadMachine (machineKey) {
+    const exists = await machineExists(machineKey)
+    if (!exists) {
+      throw Error(`Machine ${machineKey} does not exist.`)
+    }
+    return _generateMachineInstance(machineKey)
+  }
+
+  /*
+  Creates closure representing the machine.
+  Throws if machine already exists
+   */
+  async function createMachine (machineKey) {
+    const exists = await machineExists(machineKey)
+    if (exists) {
+      throw Error(`Machine ${machineKey} already exist.`)
+    }
+    return _generateMachineInstance(machineKey)
   }
 
   async function getAllMachinesData () {
@@ -35,6 +67,7 @@ module.exports.createFsmManagerRedis = function createFsmManagerRedis (definitio
   }
 
   return {
+    createMachine,
     loadMachine,
     getAllMachinesData,
     destroyMachine

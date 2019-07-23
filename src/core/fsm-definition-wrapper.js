@@ -39,7 +39,7 @@ function assertIsValidMachineDefinition (definition) {
 function createFsmDefinitionWrapper (definition) {
   assertIsValidMachineDefinition(definition)
 
-  async function getStateMetadata (state) {
+  function getStateMetadata (state) {
     const stateDefinition = definition.states.find(s => s.name === state)
     if (!stateDefinition) {
       throw Error('Fatal error, this is state machine implementation error. Current state not found in machine states definition.')

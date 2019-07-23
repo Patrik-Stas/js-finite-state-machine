@@ -15,7 +15,7 @@ let fsmManager
 let createFsmManager
 let suiteRunId
 
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mem'
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'redis'
 
 beforeEach(async () => {
   suiteRunId = `${uuid.v4()}`
@@ -49,7 +49,7 @@ beforeEach(async () => {
   fsmManager = await createFsmManager(matterMachineDefinition, suiteRunId)
 
   machineId = `machine-${uuid.v4()}`
-  stateMachine = await fsmManager.loadMachine(machineId)
+  stateMachine = await fsmManager.createMachine(machineId)
 })
 
 describe('state machine with memory storage', () => {
@@ -80,8 +80,8 @@ describe('state machine with memory storage', () => {
 
   it('state machines from factory should have separate states', async () => {
     // act
-    const stateMachine1 = await fsmManager.loadMachine(`${machineId}-1`)
-    const stateMachine2 = await fsmManager.loadMachine(`${machineId}-2`)
+    const stateMachine1 = await fsmManager.createMachine(`${machineId}-1`)
+    const stateMachine2 = await fsmManager.createMachine(`${machineId}-2`)
 
     await stateMachine1.transitionStart('melt')
     await stateMachine1.transitionFinish()
@@ -98,7 +98,7 @@ describe('state machine with memory storage', () => {
 
   it('should return all managed state machines', async () => {
     // act
-    const stateMachine2 = await fsmManager.loadMachine(`${machineId}-2`)
+    const stateMachine2 = await fsmManager.createMachine(`${machineId}-2`)
     await stateMachine2.transitionStart('melt')
     const machines = await fsmManager.getAllMachinesData()
     // assert
@@ -121,7 +121,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionFinish()
     await fsmManager.destroyMachine(machineId)
     // assert
-    const stateMachineRecreated = await fsmManager.loadMachine(machineId)
+    const stateMachineRecreated = await fsmManager.createMachine(machineId)
     expect(await stateMachineRecreated.getState()).toBe('solid')
   })
 
@@ -159,6 +159,33 @@ describe('state machine with memory storage', () => {
     const originalStringified = JSON.stringify(await stateMachine.getMachineData())
     const reloadedStringified = JSON.stringify(await stateMachineReloaded.getMachineData())
     expect(reloadedStringified).toBe(originalStringified)
+  })
+
+  it('should throw if loading machine which does not exist', async () => {
+    let thrownError
+    const loadid = uuid.v4()
+    // act
+    try {
+      await fsmManager.loadMachine(loadid)
+    } catch (err) {
+      thrownError = err
+    }
+    // assert
+    expect(thrownError.toString()).toBe(`Error: Machine ${loadid} does not exist.`)
+  })
+
+  it('should throw machine already exists', async () => {
+    let thrownError
+    const newid = uuid.v4()
+    // act
+    try {
+      await fsmManager.createMachine(newid)
+      await fsmManager.createMachine(newid)
+    } catch (err) {
+      thrownError = err
+    }
+    // assert
+    expect(thrownError.toString()).toBe(`Error: Machine ${newid} already exist.`)
   })
 
   it('should throw error if machine is reloaded using fsm definition with different name', async () => {
@@ -291,7 +318,7 @@ describe('state machine with memory storage', () => {
     expect(await stateMachine.isInState('liquid')).toBeTruthy()
     // act
     await fsmManager.destroyMachine(machineId)
-    stateMachine = await fsmManager.loadMachine(machineId)
+    stateMachine = await fsmManager.createMachine(machineId)
     // assert
     expect(await stateMachine.getState()).toBe('solid')
     expect(await stateMachine.isInState('solid')).toBeTruthy()

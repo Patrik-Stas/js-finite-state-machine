@@ -19,10 +19,15 @@ module.exports.createMemKeystore = function createMemKeystore () {
     return storage
   }
 
+  function hasKey (key) {
+    return (!!storage[key])
+  }
+
   return {
     set,
     get,
     del,
+    hasKey,
     getKeys
   }
 }
@@ -33,7 +38,7 @@ identification of machines by a single ID value. The advantage of preserving thi
 FSM Manager is that you can levrage tests in this project which assume this interface.
  */
 module.exports.createFsmManagerMem = function createFsmManagerMem (fsmDefinition, memStorage) {
-  async function loadMachine (machineKey) {
+  async function _generateMachineInstance (machineKey) {
     const saveFsm = (machineData) => {
       memStorage.set(machineKey, machineData)
     }
@@ -42,6 +47,38 @@ module.exports.createFsmManagerMem = function createFsmManagerMem (fsmDefinition
     }
 
     return createStateMachine(saveFsm, loadFsm, fsmDefinition)
+  }
+
+  /*
+  Returns true if machine exists
+  Returns false if machine does not exist
+   */
+  async function machineExists (machineKey) {
+    return memStorage.hasKey(machineKey)
+  }
+
+  /*
+  Creates closure representing the machine.
+  Throws if machine does not already exists.
+   */
+  async function loadMachine (machineKey) {
+    const exists = await machineExists(machineKey)
+    if (!exists) {
+      throw Error(`Machine ${machineKey} does not exist.`)
+    }
+    return _generateMachineInstance(machineKey)
+  }
+
+  /*
+  Creates closure representing the machine.
+  Throws if machine already exists
+   */
+  async function createMachine (machineKey) {
+    const exists = await machineExists(machineKey)
+    if (exists) {
+      throw Error(`Machine ${machineKey} already exist.`)
+    }
+    return _generateMachineInstance(machineKey)
   }
 
   /*
@@ -60,6 +97,8 @@ module.exports.createFsmManagerMem = function createFsmManagerMem (fsmDefinition
   }
 
   return {
+    machineExists,
+    createMachine,
     loadMachine,
     getAllMachinesData,
     destroyMachine
