@@ -1,8 +1,8 @@
 /* eslint-env jest */
-const { createMemKeystore } = require('../../src/core/fsm-storage/fsm-manager-mem')
-const { createFsmManagerMem } = require('../../src/core/fsm-storage/fsm-manager-mem')
-const { createFsmManagerMdb } = require('../../src/core/fsm-storage/fsm-manager-mongo')
-const { createFsmManagerRedis } = require('../../src/core/fsm-storage/fsm-manager-redis')
+const { createMemKeystore } = require('../../src/core/fsm-storage/strategy-keyvalue')
+const { createFsmManagerMem } = require('../../src/core/fsm-storage/strategy-keyvalue')
+const { createFsmManagerMdb } = require('../../src/core/fsm-storage/strategy-mongo')
+const { createFsmManagerRedis } = require('../../src/core/fsm-storage/strategy-redis')
 const { matterMachineDefinition } = require('./../common')
 const MongoClient = require('mongodb')
 const redis = require('redis')
@@ -16,7 +16,7 @@ let fsmManager
 let createFsmManager
 let suiteRunId
 
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mongodb'
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'redis'
 
 beforeEach(async () => {
   suiteRunId = `${uuid.v4()}`
@@ -48,7 +48,6 @@ beforeEach(async () => {
     throw Error(`Unknown storage type '${STORAGE_TYPE}'.`)
   }
   fsmManager = await createFsmManager(matterMachineDefinition, suiteRunId)
-
   machineId = `machine-${uuid.v4()}`
   stateMachine = await fsmManager.createMachine(machineId)
 })
@@ -198,7 +197,7 @@ describe('state machine with memory storage', () => {
       thrownError = err
     }
     // assert
-    expect(thrownError.toString()).toBe(`Error: Machine ${loadid} does not exist.`)
+    expect(thrownError.toString()).toBe(`Error: Machine ${JSON.stringify(loadid)} does not exist.`)
   })
 
   it('should throw machine already exists', async () => {
@@ -212,7 +211,7 @@ describe('state machine with memory storage', () => {
       thrownError = err
     }
     // assert
-    expect(thrownError.toString()).toBe(`Error: Machine ${newid} already exist.`)
+    expect(thrownError.toString()).toBe(`Error: Machine ${JSON.stringify(newid)} already exist.`)
   })
 
   it('should throw error if machine is reloaded using fsm definition with different name', async () => {
@@ -226,7 +225,7 @@ describe('state machine with memory storage', () => {
       thrownError = err
     }
     // assert
-    expect(thrownError.toString()).toBe(`Error: Loaded machine type '${matterMachineDefinition.type}' but was expecting to find '${editedMachineDefinition.type}'.`)
+    expect(thrownError.toString().includes('Based on provided FSM Definition the machine was expected to be of type')).toBeTruthy()
   })
 
   it('reloaded machine should have the same data as original after transitioning', async () => {

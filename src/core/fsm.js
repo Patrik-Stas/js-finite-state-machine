@@ -18,7 +18,6 @@ When instance of machine is created, getState is called to load up current state
 is set in storage.
  */
 const { createFsmDefinitionWrapper } = require('./fsm-definition-wrapper')
-const assert = require('assert')
 /*
 The machine does not provide race condition guarantees. It's up to user to assure 2 instances of same machine
 are not created simultaneously (which might result in multiple conflicting storage writes).
@@ -26,31 +25,86 @@ The machine instance persists any state changes to the storage. Machine only loa
 If machine state in memory goes out of sync with data in storage, that would be a problem. If you only work with
 1 machine instance at time, that should not happen.
 
-If we implement memory-stateless state-machine and turn this to merely an interface to a
-
 We don't introduce any concept of ID on this level of abstraction - why? Because we don't want to put assumptions on
 how machines of certain type might be identified. Some machines might be identified by single key. Some might be
 identified by multiple keys. Others might be unordered set of keys.
  */
-module.exports.createStateMachine = async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, fsmDefinition) {
-  const defintionWrapper = createFsmDefinitionWrapper(fsmDefinition)
+
+function validateFunctions (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineKey) {
+  if (typeof serializeAndSaveFsm !== 'function') {
+    throw Error(`serializeAndSaveFsm was expected to be function, but was ${typeof serializeAndSaveFsm}`)
+  }
+  if (typeof loadAndDeserializeFsm !== 'function') {
+    throw Error(`loadAndDeserializeFsm was expected to be function, but was ${typeof loadAndDeserializeFsm}`)
+  }
+  if (typeof getMachineKey !== 'function') {
+    throw Error(`getMachineKey was expected to be function, but was ${typeof getMachineKey}`)
+  }
+}
+
+/*
+Creates new machine instance if machine is found in storage
+Throws if machine does not exist in storage
+ */
+async function loadStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinition) {
+  createFsmDefinitionWrapper(fsmDefinition)
+  validateFunctions(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId)
   if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
     throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
   }
-  assert(!!fsmDefinition)
-  const loadedOnInit = await loadAndDeserializeFsm()
-  if (loadedOnInit) {
-    if (loadedOnInit.type !== fsmDefinition.type) {
-      throw Error(`Loaded machine type '${loadedOnInit.type}' but was expecting to find '${fsmDefinition.type}'.`)
+  const key = await getMachineId()
+  const foundMachine = await loadAndDeserializeFsm()
+  if (foundMachine) {
+    if (foundMachine.type !== fsmDefinition.type) {
+      throw Error(`Was about to load machine ${JSON.stringify(key)}s. Based on provided FSM Definition the machine was expected to be of type '${foundMachine.type}' but in fact was of type '${fsmDefinition.type}'.`)
     }
   } else {
-    await saveMachineData({
+    throw Error(`Was creating machine by loading from storage, but machine does not exist.`)
+  }
+  return spawnStateMachine(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinition)
+}
+
+/*
+Creates new machine instance if machine is not found in storage. On creation persist machine in initial state
+Throws if machine already exists in storage
+ */
+async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinition) {
+  createFsmDefinitionWrapper(fsmDefinition)
+  validateFunctions(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId)
+  if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
+    throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
+  }
+  const key = await getMachineId()
+  const foundMachine = await loadAndDeserializeFsm()
+  if (foundMachine) {
+    throw Error(`Was about to create new machine '${JSON.stringify(key)}' but machine with such key was already in 
+    the storage. This was the found machine: ${JSON.stringify(foundMachine)}!`)
+  } else {
+    const utime = Date.now()
+    await serializeAndSaveFsm({
+      machineId: getMachineId(),
+      utimeUpdated: utime,
+      utimeCreated: utime,
       type: fsmDefinition.type,
       state: fsmDefinition.initialState,
       transition: null,
       history: []
     }, true)
   }
+  return spawnStateMachine(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinition)
+}
+
+/*
+Doesn't check what's in storage. This merely creates object for accessing and manipulating a machine which is
+expected to already exist in storage.
+
+It must be that:
+if serializeAndSaveFsm(getFsmId, machineData) then
+machineData === loadAndDeserializeFsm(getFsmId)
+ */
+function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinition) {
+  const defintionWrapper = createFsmDefinitionWrapper(fsmDefinition)
+  validateFunctions(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId)
 
   function validateMachineData (machineData) {
     if (!machineData) {
@@ -76,14 +130,11 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   Throws error if error occurs while persisting state.
   Thows error if loaded machine is found to be transitioning, unless explicitly allowed via expectTransition argument
    */
-  async function saveMachineData (machineData, isNew = false) {
+  async function saveMachineData (machineData) {
     validateMachineData(machineData)
     try {
       const utime = Date.now()
       machineData.utimeUpdated = utime
-      if (isNew) {
-        machineData.utimeCreated = utime
-      }
       await serializeAndSaveFsm(machineData)
     } catch (err) {
       throw Error(`Can't persist machine because error was thrown while persisting: ${err}\n${err.stack}`)
@@ -271,3 +322,7 @@ module.exports.createStateMachine = async function createStateMachine (serialize
     getMachineData
   }
 }
+
+module.exports.loadStateMachine = loadStateMachine
+module.exports.createStateMachine = createStateMachine
+module.exports.spawnStateMachine = spawnStateMachine
