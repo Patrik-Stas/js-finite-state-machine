@@ -18,7 +18,6 @@ When instance of machine is created, getState is called to load up current state
 is set in storage.
  */
 const { createFsmDefinitionWrapper } = require('./fsm-definition-wrapper')
-const assert = require('assert')
 /*
 The machine does not provide race condition guarantees. It's up to user to assure 2 instances of same machine
 are not created simultaneously (which might result in multiple conflicting storage writes).
@@ -32,24 +31,60 @@ We don't introduce any concept of ID on this level of abstraction - why? Because
 how machines of certain type might be identified. Some machines might be identified by single key. Some might be
 identified by multiple keys. Others might be unordered set of keys.
  */
-module.exports.createStateMachine = async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, fsmDefinition) {
-  const defintionWrapper = createFsmDefinitionWrapper(fsmDefinition)
+
+/*
+Creates new machine instance if machine is found in storageg
+Throws if machine does not exist in storage
+ */
+async function loadStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, encodedId, fsmDefinition) {
+  createFsmDefinitionWrapper(fsmDefinition)
   if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
     throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
   }
-  assert(!!fsmDefinition)
   const loadedOnInit = await loadAndDeserializeFsm()
   if (loadedOnInit) {
     if (loadedOnInit.type !== fsmDefinition.type) {
       throw Error(`Loaded machine type '${loadedOnInit.type}' but was expecting to find '${fsmDefinition.type}'.`)
     }
   } else {
-    await saveMachineData({
+    throw Error(`Was creating machine by loading from storage, but machine does not exist.`)
+  }
+  return spawnStateMachine(serializeAndSaveFsm, loadAndDeserializeFsm, fsmDefinition)
+}
+
+/*
+Creates new machine instance if machine is not found in storage. On creation persist machine in initial state
+Throws if machine already exists in storage
+ */
+async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, fsmDefinition) {
+  createFsmDefinitionWrapper(fsmDefinition)
+  if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
+    throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
+  }
+  if (await loadAndDeserializeFsm()) {
+    throw Error(`Was about to create new machine, but it was already in storage!`)
+  } else {
+    await serializeAndSaveFsm({
       type: fsmDefinition.type,
       state: fsmDefinition.initialState,
       transition: null,
       history: []
     })
+  }
+  return spawnStateMachine(serializeAndSaveFsm, loadAndDeserializeFsm, fsmDefinition)
+}
+
+/*
+Doesn't check what's in storage and only creates a object to work with machine which must exist in storage!
+
+It must be that:
+if serializeAndSaveFsm(getFsmId, machineData) then
+machineData === loadAndDeserializeFsm(getFsmId)
+ */
+function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getFsmId, fsmDefinition) {
+  const defintionWrapper = createFsmDefinitionWrapper(fsmDefinition)
+  if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
+    throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
   }
 
   function validateMachineData (machineData) {
@@ -266,3 +301,7 @@ module.exports.createStateMachine = async function createStateMachine (serialize
     getMachineData
   }
 }
+
+module.exports.loadStateMachine = loadStateMachine
+module.exports.createStateMachine = createStateMachine
+module.exports.spawnStateMachine = spawnStateMachine

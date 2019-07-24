@@ -1,4 +1,4 @@
-const { createStateMachine } = require('../fsm')
+const { spawnStateMachine } = require('../fsm')
 
 module.exports.createFsmManagerMdb = function createFsmManagerMdb (definition, mdbCollection) {
   async function _generateMachineInstance (machineKey) {
@@ -18,7 +18,7 @@ module.exports.createFsmManagerMdb = function createFsmManagerMdb (definition, m
       return serialized ? serialized.machineData : null
     }
 
-    return createStateMachine(saveFsm, loadFsm, definition)
+    return spawnStateMachine(saveFsm, loadFsm, definition)
   }
 
   /*

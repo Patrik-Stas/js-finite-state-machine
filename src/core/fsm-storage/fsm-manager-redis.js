@@ -1,4 +1,4 @@
-const { createStateMachine } = require('../fsm')
+const { spawnStateMachine } = require('../fsm')
 const util = require('util')
 
 module.exports.createFsmManagerRedis = function createFsmManagerRedis (definition, redisClient, namespace) {
@@ -17,7 +17,7 @@ module.exports.createFsmManagerRedis = function createFsmManagerRedis (definitio
       return JSON.parse(serialized)
     }
 
-    return createStateMachine(saveFsm, loadFsm, definition)
+    return spawnStateMachine(saveFsm, loadFsm, definition)
   }
 
   /*
