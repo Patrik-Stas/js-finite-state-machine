@@ -1,4 +1,4 @@
-# Javascript Finite State Machine
+# Javascript Finite State Machine (version 1.0.x)
 Pretty simplistic Finite State Machines (FSMs) with modular state persistence.  No callbacks, 
 triggers, just doing transitions, checking the rules, persisting and loading the states. 
 
