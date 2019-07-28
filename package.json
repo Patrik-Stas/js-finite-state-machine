@@ -4,6 +4,8 @@
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
+    "tag": "git tag `cat package.json | jq -r .version`",
+    "lint": "standard",
     "demo": "node demo/index.js",
     "test": "npm run test:mem && npm run test:mongo && npm run test:redis",
     "test:mem": "STORAGE_TYPE=mem jest test",
