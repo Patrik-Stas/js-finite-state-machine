@@ -19,12 +19,14 @@ Each of these implementations identifies machines by single id.
 But let's take a step back and star from scratch, shall we?
 
 # Installation
+Version `2.0.0` of this module is being in development and `2.0.0-dev.x` releases are very unstable. 
+**Please use versions 1.0.x which this documentation as well refers against**  
 ```
-npm install @patrikstas/finite-state-machine
+npm install @patrikstas/finite-state-machine@1.0.3
 ```
 or 
 ```
-yarn add @patrikstas/finite-state-machine
+yarn add @patrikstas/finite-state-machine@1.0.3 --exact
 ```
 
 # Tutorial
