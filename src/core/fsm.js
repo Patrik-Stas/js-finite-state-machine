@@ -49,7 +49,7 @@ module.exports.createStateMachine = async function createStateMachine (serialize
       state: fsmDefinition.initialState,
       transition: null,
       history: []
-    })
+    }, true)
   }
 
   function validateMachineData (machineData) {
@@ -76,9 +76,14 @@ module.exports.createStateMachine = async function createStateMachine (serialize
   Throws error if error occurs while persisting state.
   Thows error if loaded machine is found to be transitioning, unless explicitly allowed via expectTransition argument
    */
-  async function saveMachineData (machineData) {
+  async function saveMachineData (machineData, isNew = false) {
     validateMachineData(machineData)
     try {
+      const utime = Date.now()
+      machineData.utimeUpdated = utime
+      if (isNew) {
+        machineData.utimeCreated = utime
+      }
       await serializeAndSaveFsm(machineData)
     } catch (err) {
       throw Error(`Can't persist machine because error was thrown while persisting: ${err}\n${err.stack}`)

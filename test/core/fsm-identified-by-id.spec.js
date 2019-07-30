@@ -8,6 +8,7 @@ const MongoClient = require('mongodb')
 const redis = require('redis')
 const uuid = require('uuid')
 const util = require('util')
+const sleep = require('sleep-promise')
 
 let stateMachine
 let machineId
@@ -15,7 +16,7 @@ let fsmManager
 let createFsmManager
 let suiteRunId
 
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'redis'
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mongodb'
 
 beforeEach(async () => {
   suiteRunId = `${uuid.v4()}`
@@ -66,6 +67,15 @@ describe('state machine with memory storage', () => {
     expect(machineData.name).toBe(matterMachineDefinition.name)
     expect(machineData.version).toBe(matterMachineDefinition.version)
     expect(JSON.stringify(machineData.history)).toBe('[]')
+
+    const utimeNow = Date.now()
+    expect(machineData.utimeCreated).toBeLessThan(utimeNow)
+    expect(machineData.utimeCreated).toBeGreaterThan(utimeNow - 2000)
+
+    expect(machineData.utimeUpdated).toBeLessThan(utimeNow)
+    expect(machineData.utimeUpdated).toBeGreaterThan(utimeNow - 2000)
+
+    expect(machineData.utimeCreated).toBe(machineData.utimeUpdated)
   })
 
   it('should create store record in storage with default values', async () => {
@@ -149,6 +159,23 @@ describe('state machine with memory storage', () => {
     // assert
     expect(await stateMachine.getState()).toBe('liquid')
     expect(await stateMachine.isInState('liquid')).toBeTruthy()
+  })
+
+  it('should update utimeUpdated value on transition', async () => {
+    // act
+    await sleep(10)
+    const utimeBeforeTransition = Date.now()
+    await sleep(10)
+    await stateMachine.doTransition('melt')
+    await sleep(10)
+    const utimeAfterTransition = Date.now()
+
+    // assert
+    const { utimeCreated, utimeUpdated } = await stateMachine.getMachineData()
+
+    expect(utimeCreated).toBeLessThan(utimeUpdated)
+    expect(utimeUpdated).toBeGreaterThan(utimeBeforeTransition)
+    expect(utimeUpdated).toBeLessThan(utimeAfterTransition)
   })
 
   it('reloaded machine should have the same data as original', async () => {
