@@ -1,11 +1,11 @@
-const { createFsmManagerMem } = require('../src/core/fsm-storage/strategy-keyvalue')
-const { createMemKeystore } = require('../src/core/fsm-storage/strategy-keyvalue')
+const { createFsmManagerMem } = require('../src/core/storage-strategies/strategy-memory')
+const { createMemKeystore } = require('../src/core/storage-strategies/strategy-memory')
 const sleep = require('sleep-promise')
 const util = require('util')
 const MongoClient = require('mongodb')
 const redis = require('redis')
-const { createFsmManagerRedis } = require('../src/core/fsm-storage/strategy-redis')
-const { createFsmManagerMdb } = require('../src/core/fsm-storage/strategy-mongo')
+const { createFsmManagerRedis } = require('../src/core/storage-strategies/strategy-redis')
+const { createFsmManagerMdb } = require('../src/core/storage-strategies/strategy-mongo')
 
 const semaphoreDefinition = {
   initialState: 'off',

@@ -1,8 +1,9 @@
 /* eslint-env jest */
-const { createMemKeystore } = require('../../src/core/fsm-storage/strategy-keyvalue')
-const { createFsmManagerMem } = require('../../src/core/fsm-storage/strategy-keyvalue')
-const { createFsmManagerMdb } = require('../../src/core/fsm-storage/strategy-mongo')
-const { createFsmManagerRedis } = require('../../src/core/fsm-storage/strategy-redis')
+const { createFsmManager } = require('../../src/core/fsm-manager')
+const { createMemKeystore } = require('../../src/core/storage-strategies/strategy-memory')
+const { createStrategyMemory } = require('../../src/core/storage-strategies/strategy-memory')
+const { createStrategyMongo } = require('../../src/core/storage-strategies/strategy-mongo')
+const { createStrategyRedis } = require('../../src/core/storage-strategies/strategy-redis')
 const { matterMachineDefinition } = require('./../common')
 const MongoClient = require('mongodb')
 const redis = require('redis')
@@ -13,41 +14,42 @@ const sleep = require('sleep-promise')
 let stateMachine
 let machineId
 let fsmManager
-let createFsmManager
+let createStorageStrategy
 let suiteRunId
 
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'redis'
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mem'
 
 beforeEach(async () => {
   suiteRunId = `${uuid.v4()}`
   if (STORAGE_TYPE === 'mem') {
     // we are careful here to make sure that any fsmManagerMem created will share the same in-mem storage
     let keystores = {}
-    createFsmManager = (machineDefinition, fsmNamespace) => {
+    createStorageStrategy = (fsmNamespace) => {
       if (!keystores[fsmNamespace]) {
         keystores[fsmNamespace] = createMemKeystore()
       }
-      return createFsmManagerMem(machineDefinition, keystores[fsmNamespace])
+      return createStrategyMemory(keystores[fsmNamespace])
     }
   } else if (STORAGE_TYPE === 'mongodb') {
     const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
     const asyncMongoConnect = util.promisify(MongoClient.connect)
     const mongoHost = await asyncMongoConnect(MONGO_URL)
     const mongoDatabase = await mongoHost.db(`UNIT-TEST-STATEMACHINE`)
-    createFsmManager = async (machineDefinition, fsmNamespace) => {
+    createStorageStrategy = async (fsmNamespace) => {
       const collection = await mongoDatabase.collection(fsmNamespace)
-      return createFsmManagerMdb(machineDefinition, collection)
+      return createStrategyMongo(collection)
     }
   } else if (STORAGE_TYPE === 'redis') {
     const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
     const redisClient = redis.createClient(REDIS_URL)
-    createFsmManager = (machineDefinition, fsmNamespace) => {
-      return createFsmManagerRedis(machineDefinition, redisClient, fsmNamespace)
+    createStorageStrategy = (fsmNamespace) => {
+      return createStrategyRedis(redisClient, fsmNamespace)
     }
   } else {
     throw Error(`Unknown storage type '${STORAGE_TYPE}'.`)
   }
-  fsmManager = await createFsmManager(matterMachineDefinition, suiteRunId)
+  let storageStrategy = await createStorageStrategy(suiteRunId)
+  fsmManager = createFsmManager(storageStrategy, matterMachineDefinition)
   machineId = `machine-${uuid.v4()}`
   stateMachine = await fsmManager.createMachine(machineId)
 })
@@ -217,14 +219,15 @@ describe('state machine with memory storage', () => {
   it('should throw error if machine is reloaded using fsm definition with different name', async () => {
     let editedMachineDefinition = { ...matterMachineDefinition, type: `matter-type-edit-${uuid.v4()}` }
     // act
-    const modifiedFsmManager = await createFsmManager(editedMachineDefinition, suiteRunId)
+    const fsmManager2 = createFsmManager(await createStorageStrategy(suiteRunId), editedMachineDefinition)
     let thrownError
     try {
-      await modifiedFsmManager.loadMachine(machineId)
+      await fsmManager2.loadMachine(machineId)
     } catch (err) {
       thrownError = err
     }
     // assert
+    console.log(thrownError.toString())
     expect(thrownError.toString().includes('Based on provided FSM Definition the machine was expected to be of type')).toBeTruthy()
   })
 
