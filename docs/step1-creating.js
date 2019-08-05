@@ -4,7 +4,7 @@ const { createStrategyMemory, createFsmManager } = require('../src')
 async function runExample () {
   let strategyMemory = createStrategyMemory()
   const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
-  const semaphore = await fsmManager.machineCreate('id-1')
+  const semaphore = await fsmManager.fsmCreate('id-1')
   console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
 
   // function doTransition(transitionName) invokes transitions. If the transition

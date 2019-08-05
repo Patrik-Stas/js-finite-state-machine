@@ -18,7 +18,7 @@ let suiteRunId
 let mongoDatabase
 let redisClient
 
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mongodb'
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mem'
 
 beforeEach(async () => {
   suiteRunId = `${uuid.v4()}`
@@ -56,8 +56,8 @@ beforeEach(async () => {
 describe('state machine manager', () => {
   it('state machines from factory should have separate states', async () => {
     // act
-    const stateMachine1 = await fsmManager.machineCreate(`1`)
-    const stateMachine2 = await fsmManager.machineCreate(`2`)
+    const stateMachine1 = await fsmManager.fsmCreate(`1`)
+    const stateMachine2 = await fsmManager.fsmCreate(`2`)
 
     await stateMachine1.transitionStart('melt')
     await stateMachine1.transitionFinish()
@@ -74,10 +74,10 @@ describe('state machine manager', () => {
 
   it('should return all managed state machines', async () => {
     // act
-    await fsmManager.machineCreate(`1`)
-    const stateMachine2 = await fsmManager.machineCreate(`2`)
+    await fsmManager.fsmCreate(`1`)
+    const stateMachine2 = await fsmManager.fsmCreate(`2`)
     await stateMachine2.transitionStart('melt')
-    const machines = await fsmManager.machinesLoad()
+    const machines = await fsmManager.fsmFullLoadMany()
     // assert
     expect(machines).toBeDefined()
     expect(machines.length).toBe(2)
@@ -85,19 +85,19 @@ describe('state machine manager', () => {
     const loadedMachine2 = machines.find(m => m.machineId === `2`)
     expect(loadedMachine).toBeDefined()
     expect(loadedMachine2).toBeDefined()
-    expect(loadedMachine.state).toBe('solid')
-    expect(loadedMachine.transition).toBe(null)
-    expect(loadedMachine2.state).toBe('solid')
-    expect(loadedMachine2.transition).toBe('melt')
+    expect(loadedMachine.fsmData.state).toBe('solid')
+    expect(loadedMachine.fsmData.transition).toBe(null)
+    expect(loadedMachine2.fsmData.state).toBe('solid')
+    expect(loadedMachine2.fsmData.transition).toBe('melt')
   })
 
   it('should retrieve all state machines', async () => {
     // arrange
     for (let i = 0; i < 100; i++) {
-      await fsmManager.machineCreate(i.toString())
+      await fsmManager.fsmCreate(i.toString())
     }
     // act
-    const machines = await fsmManager.machinesLoad()
+    const machines = await fsmManager.fsmFullLoadMany()
     // assert
     expect(machines.length).toBe(100)
   })
@@ -105,10 +105,10 @@ describe('state machine manager', () => {
   it('should retrieve 10 machines', async () => {
     // arrange
     for (let i = 1; i <= 100; i++) {
-      await fsmManager.machineCreate(i.toString())
+      await fsmManager.fsmCreate(i.toString())
     }
     // act
-    const machines = await fsmManager.machinesLoad(null, 10)
+    const machines = await fsmManager.fsmFullLoadMany(null, 10)
     // assert
     expect(machines.length).toBe(10)
   })
@@ -116,10 +116,10 @@ describe('state machine manager', () => {
   it('should sort by create time descending by default', async () => {
     // arrange
     for (let i = 1; i <= 100; i++) {
-      await fsmManager.machineCreate(i.toString())
+      await fsmManager.fsmCreate(i.toString())
     }
     // act
-    const machines = await fsmManager.machinesLoad(10, 10)
+    const machines = await fsmManager.fsmFullLoadMany(10, 10)
     // assert
     expect(machines.length).toBe(10)
     expect(machines[0].machineId).toBe('90')

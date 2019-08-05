@@ -5,7 +5,7 @@ finalizing started transition.
 async function runExample () {
   let memStore = createMemKeystore()
   const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-  const sema1 = await fsmManager.machineCreate('semaphore1')
+  const sema1 = await fsmManager.fsmCreate('semaphore1')
   console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
 
   // There's also option to do transition in 2 steps. This might come handy 

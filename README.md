@@ -18,9 +18,9 @@ The usage of this module is straightforward:
 
 The state machine can work with any data layer and this module comes with batteries 
 included. 3 storage implementations are included in the module
-- memory
-- redis
-- mongodb
+- mongodb (the main and the most complete implementation)
+- memory  (missing capability to query all machines with filters and paging)
+- redis   (missing capability to query all machines with filters and paging)
 
 Each of these identifies machines by single id value. However, it's easy to implement storage
 strategy which would identify machines differently.
@@ -98,7 +98,7 @@ const { createStrategyMemory, createFsmManager } = require('../src')
 async function runExample () {
   let strategyMemory = createStrategyMemory()
   const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
-  const semaphore = await fsmManager.machineCreate('id-1')
+  const semaphore = await fsmManager.fsmCreate('id-1')
   console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
 }
 runExample()
@@ -120,7 +120,7 @@ const { createStrategyMemory, createFsmManager } = require('../src')
 async function runExample () {
   let strategyMemory = createStrategyMemory()
   const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
-  const semaphore = await fsmManager.machineCreate('id-1')
+  const semaphore = await fsmManager.fsmCreate('id-1')
   console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
 
   // function doTransition(transitionName) invokes transitions. If the transition
@@ -138,7 +138,7 @@ The code prints
 Semaphore1 is in state off.
 Semaphore1 is in state red.
 ```
-When we call `machineCreate`, the machine with given ID is persisted in the storage, starting in state 
+When we call `fsmCreate`, the machine with given ID is persisted in the storage, starting in state 
 specified by `initialState` from the machine definition. The function returns us an object which is 
 used to further access and manipulate this particular machine representation in the storage.
 
@@ -156,7 +156,7 @@ const { createStrategyMemory, createFsmManager } = require('../src')
 async function runExample () {
   let strategyMemory = createStrategyMemory()
   const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
-  let semaphore = await fsmManager.machineCreate('id-1')
+  let semaphore = await fsmManager.fsmCreate('id-1')
   console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
 
   await semaphore.doTransition('enable')
@@ -166,7 +166,7 @@ async function runExample () {
   delete semaphore
 
   // just to find it later again!
-  const semaphoreReloaded = await fsmManager.machineLoad('id-1')
+  const semaphoreReloaded = await fsmManager.fsmFullLoad('id-1')
   sema1state = await semaphoreReloaded.getState()
   console.log(`Reloaded Semaphore1 is in state ${sema1state}.`)
 }
@@ -188,11 +188,11 @@ const { createStrategyMemory, createFsmManager } = require('../src')
 async function runExample () {
   let strategyMemory = createStrategyMemory()
   const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
-  const semaphore = await fsmManager.machineCreate('id-1')
+  const semaphore = await fsmManager.fsmCreate('id-1')
   console.log(await semaphore.getState())
   await semaphore.doTransition('enable')
   await semaphore.doTransition('next')
-  const semaphoreReloaded = await fsmManager.machineLoad('id-1')
+  const semaphoreReloaded = await fsmManager.fsmFullLoad('id-1')
   const history = await semaphoreReloaded.getHistory()
   console.log(`Current history of Semaphore id-1 is: ${JSON.stringify(history, null, 2)}`)
   // Current history of Semaphore1 is: [
@@ -232,7 +232,7 @@ async function runExample () {
   // and we can use it exactly like we did previously
   const strategy = createStrategyMongo(collection)
   const fsmManager = createFsmManager(strategy, semaphoreDefinition)
-  let semaphore = await fsmManager.machineCreate('id1')
+  let semaphore = await fsmManager.fsmCreate('id1')
   await semaphore.doTransition('enable')
   console.log(`Semaphore is in state ${await semaphore.getState()}.`)
 }
@@ -259,7 +259,7 @@ async function runExample () {
   // and we can use it exactly like we did previously
   const strategy = createStrategyRedis(redisClient, 'fsm-demo')
   const fsmManager = createFsmManager(strategy, semaphoreDefinition)
-  let semaphore = await fsmManager.machineCreate('id1')
+  let semaphore = await fsmManager.fsmCreate('id1')
   await semaphore.doTransition('enable')
   console.log(`Semaphore is in state ${await semaphore.getState()}.`)
 }

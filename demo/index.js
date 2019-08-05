@@ -44,7 +44,7 @@ async function start () {
   // ----- ----- ----- ----- -----
   // storage managed by fsmManager will be searched for machine with ID 'semaphore1'
   // if it doesn't exist, new machine 'semaphore1' is create in storage and returned.
-  const sema1 = await fsmManager.machineCreate('semaphore1')
+  const sema1 = await fsmManager.fsmCreate('semaphore1')
   let sema1state = await sema1.getState()
   // any new machine starts in state 'initialState' from FSM Definition
   console.log(`Semaphore1 is in state ${sema1state}.`)
@@ -73,8 +73,8 @@ async function start () {
 
   await sema1.transitionStart('next')
   // However, you can inspect all data of a machine as it's stored using following
-  const machineData = await sema1.getMachineData()
-  console.log(`Full machine data as it's stored in storage: ${JSON.stringify(machineData, null, 2)}`)
+  const fsmData = await sema1.getFsmData()
+  console.log(`Full machine data as it's stored in storage: ${JSON.stringify(fsmData, null, 2)}`)
   //   Full machine data as it's stored in storage:
   //   {
   //     "state": "orange",
@@ -93,7 +93,7 @@ async function start () {
   await sema1.transitionFinish()
 
   // if you now reload machine 'semaphore' again, you'll in fact load the same machine.
-  const sema1Reloaded = await fsmManager.machineLoad('semaphore1')
+  const sema1Reloaded = await fsmManager.fsmFullLoad('semaphore1')
   const history = await sema1Reloaded.getHistory()
   console.log(`Current history of Semaphore1 is: ${JSON.stringify(history, null, 2)}`)
   // Current history of Semaphore1 is: [

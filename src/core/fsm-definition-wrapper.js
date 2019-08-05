@@ -116,9 +116,14 @@ function createFsmDefinitionWrapper (definition) {
     return dot
   }
 
+  function getDefinition () {
+    return definition
+  }
+
   return {
     type: definition.type,
     initialState: definition.initialState,
+    getDefinition,
     assertIsValidMachineDefinition,
     isValidTransitionName,
     assertIsValidTransitionName,

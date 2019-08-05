@@ -29,15 +29,12 @@ how machines of certain type might be identified. Some machines might be identif
 identified by multiple keys. Others might be unordered set of keys.
  */
 
-function validateFunctions (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineKey) {
-  if (typeof serializeAndSaveFsm !== 'function') {
-    throw Error(`serializeAndSaveFsm was expected to be function, but was ${typeof serializeAndSaveFsm}`)
+function validateFunctions (saveFsmDataData, loadFsmFullFull) {
+  if (typeof saveFsmDataData !== 'function') {
+    throw Error(`serializeAndsaveFsmData was expected to be function, but was ${typeof saveFsmDataData}`)
   }
-  if (typeof loadAndDeserializeFsm !== 'function') {
-    throw Error(`loadAndDeserializeFsm was expected to be function, but was ${typeof loadAndDeserializeFsm}`)
-  }
-  if (typeof getMachineKey !== 'function') {
-    throw Error(`getMachineKey was expected to be function, but was ${typeof getMachineKey}`)
+  if (typeof loadFsmFullFull !== 'function') {
+    throw Error(`loadAndDeserializeFsm was expected to be function, but was ${typeof loadFsmFullFull}`)
   }
 }
 
@@ -45,41 +42,38 @@ function validateFunctions (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
 Creates new machine instance if machine is found in storage
 Throws if machine does not exist in storage
  */
-async function loadStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinitionWrapper) {
-  validateFunctions(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId)
-  if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
+async function loadStateMachine (saveFsmDataData, loadFsmFullFull, fsmDefinitionWrapper) {
+  validateFunctions(saveFsmDataData, loadFsmFullFull)
+  if (typeof loadFsmFullFull !== 'function' || typeof saveFsmDataData !== 'function') {
     throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
   }
-  const key = await getMachineId()
-  const foundMachine = await loadAndDeserializeFsm()
-  if (foundMachine) {
-    if (foundMachine.type !== fsmDefinitionWrapper.type) {
-      throw Error(`Was about to load machine ${JSON.stringify(key)}s. Based on provided FSM Definition the machine was expected to be of type '${foundMachine.type}' but in fact was of type '${fsmDefinitionWrapper.type}'.`)
+  const fsm = await loadFsmFullFull()
+  if (fsm) {
+    if (fsm.fsmData.type !== fsmDefinitionWrapper.type) {
+      throw Error(`Was about to load machine ${JSON.stringify(fsm.machineId)}s. Based on provided FSM Definition the machine was expected to be of type '${fsm.type}' but in fact was of type '${fsmDefinitionWrapper.type}'.`)
     }
   } else {
     throw Error(`Was creating machine by loading from storage, but machine does not exist.`)
   }
-  return spawnStateMachine(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinitionWrapper)
+  return spawnStateMachine(saveFsmDataData, loadFsmFullFull, fsmDefinitionWrapper)
 }
 
 /*
 Creates new machine instance if machine is not found in storage. On creation persist machine in initial state
 Throws if machine already exists in storage
  */
-async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinitionWrapper) {
-  validateFunctions(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId)
-  if (typeof loadAndDeserializeFsm !== 'function' || typeof serializeAndSaveFsm !== 'function') {
+async function createStateMachine (saveFsmDataData, loadFsmFullFull, fsmDefinitionWrapper) {
+  validateFunctions(saveFsmDataData, loadFsmFullFull)
+  if (typeof loadFsmFullFull !== 'function' || typeof saveFsmDataData !== 'function') {
     throw Error('Storage provided to state machine is not defined or is missing get/set functions.')
   }
-  const key = await getMachineId()
-  const foundMachine = await loadAndDeserializeFsm()
-  if (foundMachine) {
-    throw Error(`Was about to create new machine '${JSON.stringify(key)}' but machine with such key was already in 
-    the storage. This was the found machine: ${JSON.stringify(foundMachine)}!`)
+  const fsm = await loadFsmFullFull()
+  if (fsm) {
+    throw Error(`Was about to create new machine '${JSON.stringify(fsm.machineId)}' but machine with such key was already in 
+    the storage. This was the found machine: ${JSON.stringify(fsm)}!`)
   } else {
     const utime = Date.now()
-    await serializeAndSaveFsm({
-      machineId: await getMachineId(),
+    await saveFsmDataData({
       utimeUpdated: utime,
       utimeCreated: utime,
       type: fsmDefinitionWrapper.type,
@@ -88,7 +82,7 @@ async function createStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, g
       history: []
     }, true)
   }
-  return spawnStateMachine(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinitionWrapper)
+  return spawnStateMachine(saveFsmDataData, loadFsmFullFull, fsmDefinitionWrapper)
 }
 
 /*
@@ -96,26 +90,26 @@ Doesn't check what's in storage. This merely creates object for accessing and ma
 expected to already exist in storage.
 
 It must be that:
-if serializeAndSaveFsm(getFsmId, machineData) then
-machineData === loadAndDeserializeFsm(getFsmId)
+if serializeAndsaveFsmData(getFsmId, fsmData) then
+fsmData === loadAndDeserializeFsm(getFsmId)
  */
-function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId, fsmDefinitionWrapper) {
-  validateFunctions(serializeAndSaveFsm, loadAndDeserializeFsm, getMachineId)
+function spawnStateMachine (saveFsmDataData, loadFsmFullFull, fsmDefinitionWrapper) {
+  validateFunctions(saveFsmDataData, loadFsmFullFull)
 
-  function validateMachineData (machineData) {
-    if (!machineData) {
+  function validateFsmData (fsmData) {
+    if (!fsmData) {
       throw Error(`Invalid machine data, it's null or undefined.`)
     }
-    if (!machineData.state) {
+    if (!fsmData.state) {
       throw Error(`Invalid machine data. Missing 'state' field.`)
     }
-    if (machineData.history === null || machineData.history === undefined) {
+    if (fsmData.history === null || fsmData.history === undefined) {
       throw Error(`Invalid machine data.  Field 'history' is null or undefined..`)
     }
     try {
-      fsmDefinitionWrapper.assertIsValidStateName(machineData.state)
+      fsmDefinitionWrapper.assertIsValidStateName(fsmData.state)
     } catch (err) {
-      throw Error(`Invalid machine data. Machine state '${machineData.state}' is not valid against machine definition ${JSON.stringify(fsmDefinition)}.`)
+      throw Error(`Invalid machine data. Machine state '${fsmData.state}' is not valid against machine definition ${JSON.stringify(fsmDefinitionWrapper.getDefinition())}.`)
     }
   }
 
@@ -126,12 +120,12 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
   Throws error if error occurs while persisting state.
   Thows error if loaded machine is found to be transitioning, unless explicitly allowed via expectTransition argument
    */
-  async function saveMachineData (machineData) {
-    validateMachineData(machineData)
+  async function saveAndValidateFsmData (fsmData) {
+    validateFsmData(fsmData)
     try {
       const utime = Date.now()
-      machineData.utimeUpdated = utime
-      await serializeAndSaveFsm(machineData)
+      fsmData.utimeUpdated = utime
+      await saveFsmDataData(fsmData)
     } catch (err) {
       throw Error(`Can't persist machine because error was thrown while persisting: ${err}\n${err.stack}`)
     }
@@ -144,18 +138,18 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
   Throw error if data is found to be corrupted.
   Thows error if loaded machine is found to be transitioning, unless explicitly allowed via expectTransition argument
    */
-  async function machineLoadData (allowToBeInTransition = false) {
-    let machineData
+  async function loadAndValidateFsmFull (allowToBeInTransition = false) {
+    let fsmFull
     try {
-      machineData = await loadAndDeserializeFsm()
+      fsmFull = await loadFsmFullFull()
     } catch (error) {
       throw Error(`Error loading machine: ${JSON.stringify(error)}`)
     }
-    validateMachineData(machineData)
-    if (!allowToBeInTransition && machineData.transition) {
+    validateFsmData(fsmFull.fsmData)
+    if (!allowToBeInTransition && fsmFull.fsmData.transition) {
       throw Error(`Loaded machine and it's found to be transitioning state which was not expected.`)
     }
-    return machineData
+    return fsmFull
   }
 
   /*
@@ -164,11 +158,11 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
    */
   async function isInState (expected) {
     fsmDefinitionWrapper.assertIsValidStateName(expected)
-    const machine = await machineLoadData()
-    if (machine.transition) {
+    const { fsmData } = await loadAndValidateFsmFull()
+    if (fsmData.transition) {
       return false // machine is not in state, it's in transition
     }
-    return expected === machine.state
+    return expected === fsmData.state
   }
 
   /*
@@ -178,27 +172,27 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
   that machine is not in one particular state, but in the middle of certain transition
  */
   async function getState () {
-    const machine = await machineLoadData()
-    if (machine.transition) {
+    const { fsmData } = await loadAndValidateFsmFull()
+    if (fsmData.transition) {
       throw Error(`Can't determine current state because machine is transitioning.`)
     }
-    return machine.state
+    return fsmData.state
   }
 
   async function canDoTransition (transition) {
-    const machine = await machineLoadData()
-    return fsmDefinitionWrapper.isValidTransition(machine.state, transition)
+    const { fsmData } = await loadAndValidateFsmFull()
+    return fsmDefinitionWrapper.isValidTransition(fsmData.state, transition)
   }
 
   async function doTransition (transition) {
     fsmDefinitionWrapper.assertIsValidTransitionName(transition)
-    const machine = await machineLoadData()
-    const fromState = machine.state
+    const { fsmData } = await loadAndValidateFsmFull()
+    const fromState = fsmData.state
     if (await fsmDefinitionWrapper.isValidTransition(fromState, transition)) {
-      machine.state = await fsmDefinitionWrapper.getDestinationState(fromState, transition)
-      machine.transition = null
-      machine.history.push({ state: fromState, transition })
-      await saveMachineData(machine)
+      fsmData.state = await fsmDefinitionWrapper.getDestinationState(fromState, transition)
+      fsmData.transition = null
+      fsmData.history.push({ state: fromState, transition })
+      await saveAndValidateFsmData(fsmData)
     } else {
       throw Error(`Transition '${transition}' from current state '${fromState}' is invalid.`)
     }
@@ -212,11 +206,11 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
    */
   async function transitionStart (transition) {
     fsmDefinitionWrapper.assertIsValidTransitionName(transition)
-    const machine = await machineLoadData()
-    const fromState = machine.state
+    const { fsmData } = await loadAndValidateFsmFull()
+    const fromState = fsmData.state
     if (await fsmDefinitionWrapper.isValidTransition(fromState, transition)) {
-      machine.transition = transition
-      await saveMachineData(machine)
+      fsmData.transition = transition
+      await saveAndValidateFsmData(fsmData)
     } else {
       throw Error(`Transition '${transition}' from current state '${fromState}' is invalid.`)
     }
@@ -230,18 +224,18 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
   Throws if error occurs persisting machine with updated state
    */
   async function transitionFinish () {
-    const machine = await machineLoadData(true)
-    if (!machine.transition) {
+    const { fsmData } = await loadAndValidateFsmFull(true)
+    if (!fsmData.transition) {
       throw Error(`Machine is not currently transitioning. There's no transition to be finished.`)
     }
-    const newState = await fsmDefinitionWrapper.getDestinationState(machine.state, machine.transition)
+    const newState = await fsmDefinitionWrapper.getDestinationState(fsmData.state, fsmData.transition)
     if (!newState) {
       throw Error(`Unexpected error. Failed to finalize transition because it was found to be invalid.`)
     }
-    machine.history.push({ state: machine.state, transition: machine.transition })
-    machine.state = newState
-    machine.transition = null
-    await saveMachineData(machine)
+    fsmData.history.push({ state: fsmData.state, transition: fsmData.transition })
+    fsmData.state = newState
+    fsmData.transition = null
+    await saveAndValidateFsmData(fsmData)
   }
 
   /*
@@ -276,17 +270,17 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
   }
 
   async function getHistory () {
-    const machineData = await machineLoadData(true)
-    return machineData.history
+    const { fsmData } = await loadAndValidateFsmFull(true)
+    return fsmData.history
   }
 
   function getDefinitionWrapper () {
     return fsmDefinitionWrapper
   }
 
-  async function getMachineData () {
-    const machineData = await machineLoadData(true)
-    return { ...machineData }
+  async function getFsmData () {
+    const { fsmData } = await loadAndValidateFsmFull(true)
+    return { ...fsmData }
   }
 
   return {
@@ -300,7 +294,7 @@ function spawnStateMachine (serializeAndSaveFsm, loadAndDeserializeFsm, getMachi
     assertInSomeState,
     getHistory,
     getDefinitionWrapper,
-    getMachineData
+    getFsmData
   }
 }
 

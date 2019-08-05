@@ -1,6 +1,6 @@
 {
   "name": "@patrikstas/finite-state-machine",
-  "version": "2.0.0-rc.1",
+  "version": "2.0.0-rc.2",
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
@@ -13,13 +13,13 @@
     "demo:dotfile": "node demo/index.js && npm run demo:dotfile:render-and-view",
     "test": "npm run test:mem && npm run test:mongo && npm run test:redis",
     "test:mem": "STORAGE_TYPE=mem jest test/core",
-    "test:mongo": "STORAGE_TYPE=mongodb jest test/core",
+    "test:mongodb": "STORAGE_TYPE=mongodb jest test/core",
     "test:redis": "STORAGE_TYPE=redis jest test/core",
     "test:fsm:mem": "STORAGE_TYPE=mem jest test/core/fsm.spec.js",
-    "test:fsm:mongo": "STORAGE_TYPE=mongodb jest test/core/fsm.spec.js",
+    "test:fsm:mongodb": "STORAGE_TYPE=mongodb jest test/core/fsm.spec.js",
     "test:fsm:redis": "STORAGE_TYPE=redis jest test/core/fsm.spec.js",
     "test:fsm-manager:mem": "STORAGE_TYPE=mem jest test/core/fsm-manager.spec.js",
-    "test:fsm-manager:mongo": "STORAGE_TYPE=mongodb jest test/core/fsm-manager.spec.js",
+    "test:fsm-manager:mongodb": "STORAGE_TYPE=mongodb jest test/core/fsm-manager.spec.js",
     "test:fsm-manager:redis": "STORAGE_TYPE=redis jest test/core/fsm-manager.spec.js",
     "test:definition": "jest test/core/fsm-definition-wrapper.spec.js"
   },

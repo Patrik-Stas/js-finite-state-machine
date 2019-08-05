@@ -6,39 +6,42 @@ module.exports.createStrategyRedis = function createStrategyRedis (redisClient, 
   const redishgetall = util.promisify(redisClient.hgetall).bind(redisClient)
   const redisdel = util.promisify(redisClient.del).bind(redisClient)
 
-  async function machineSave (machineKey, machineData) {
-    const serialized = JSON.stringify(machineData)
-    await redishset(`fsm-${namespace}`, `${machineKey}`, serialized)
+  /*
+  TODO: Strategy should support simple objects as IDs, this doesn't now
+   */
+  async function fsmDataSave (machineId, fsmData) {
+    const serialized = JSON.stringify(fsmData)
+    await redishset(`fsm-${namespace}`, `${machineId}`, serialized)
   }
 
-  async function machineLoad (machineKey) {
-    const serialized = await redishget(`fsm-${namespace}`, machineKey)
-    return JSON.parse(serialized)
+  async function fsmFullLoad (machineId) {
+    const serialized = await redishget(`fsm-${namespace}`, machineId)
+    return serialized ? { fsmData: JSON.parse(serialized), machineId } : null
   }
 
   async function machineExists (machineKey) {
     return !!(await redishget(`fsm-${namespace}`, machineKey))
   }
 
-  async function machinesLoad (skip = null, limit = null) {
+  async function fsmFullLoadMany (skip = null, limit = null) {
     const loadedMachines = await redishgetall(`fsm-${namespace}`)
     const machinesData = []
     for (const id of Object.keys(loadedMachines)) {
-      const machineData = JSON.parse(loadedMachines[id])
-      machinesData.push({ machineData, id })
+      const fsmData = JSON.parse(loadedMachines[id])
+      machinesData.push({ fsmData, id })
     }
     return machinesData
   }
 
-  async function machineDestroy (machineKey) {
+  async function fsmDestroy (machineKey) {
     await redisdel(`fsm-${namespace}`, machineKey)
   }
 
   return {
-    machineSave,
-    machineLoad,
+    fsmDataSave,
+    fsmFullLoad,
     machineExists,
-    machinesLoad,
-    machineDestroy
+    fsmFullLoadMany,
+    fsmDestroy
   }
 }

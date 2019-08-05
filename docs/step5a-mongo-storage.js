@@ -14,7 +14,7 @@ async function runExample () {
   // and we can use it exactly like we did previously
   const strategy = createStrategyMongo(collection)
   const fsmManager = createFsmManager(strategy, semaphoreDefinition)
-  let semaphore = await fsmManager.machineCreate('id1')
+  let semaphore = await fsmManager.fsmCreate('id1')
   await semaphore.doTransition('enable')
   console.log(`Semaphore is in state ${await semaphore.getState()}.`)
 }
