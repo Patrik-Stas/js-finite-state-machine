@@ -1,4 +1,5 @@
 const assert = require('assert')
+const { buildSourceTransitionDestinationMap } = require('./fsm-definition-utils')
 
 // TODO: Add checks:
 // - multiple identical transition definitions,
@@ -10,28 +11,36 @@ function assertIsValidMachineDefinition (definition) {
   if (!definition.states) {
     throw Error('States are not defined.')
   }
-  if (definition.states.length === 0) {
+  if (Object.keys(definition.states).length === 0) {
     throw Error('At least one state must be defined.')
   }
-  if (definition.transitions === null || definition.transitions === undefined) {
+  if (!definition.transitions) {
     throw Error('Transitions must be defined.')
   }
+  for (const transition of Object.keys(definition.transitions)) {
+    const transitionDefinition = definition.transitions[transition]
+    if (!Array.isArray(transitionDefinition)) {
+      throw Error(`Definition of transition ${transition} is not array.`)
+    }
+  }
   try {
-    assert(definition.states.find(s => s.name === definition.initialState))
+    assert(definition.states[definition.initialState])
   } catch (err) {
     throw Error(`Initial state value refers state '${definition.initialState}' which was not declared.`)
   }
-  for (const transition of definition.transitions) {
-    const { from, to } = transition
-    try {
-      assert(definition.states.find(s => s.name === from))
-    } catch (err) {
-      throw Error(`Transition ${JSON.stringify(transition)} refers state from='${from}' which was not declared.`)
+  for (const transition of Object.keys(definition.transitions)) {
+    const transitionDefinition = definition.transitions[transition]
+    if (transitionDefinition.legth === 0) {
+      throw Error(`Transition '${transition}' must be have defined at least one state pair.`)
     }
-    try {
-      assert(definition.states.find(s => s.name === to))
-    } catch (err) {
-      throw Error(`Transition ${JSON.stringify(transition)} refers state to='${to}' which was not declared.`)
+    for (const statePair of transitionDefinition) {
+      const { from, to } = statePair
+      if (!definition.states[from]) {
+        throw Error(`Transition '${transition}' refers state from='${from}' which was not declared.`)
+      }
+      if (!definition.states[to]) {
+        throw Error(`Transition '${transition}' refers state to='${to}' which was not declared.`)
+      }
     }
   }
 }
@@ -39,59 +48,86 @@ function assertIsValidMachineDefinition (definition) {
 function createFsmDefinitionWrapper (definition) {
   assertIsValidMachineDefinition(definition)
 
-  function getStateMetadata (state) {
-    const stateDefinition = definition.states.find(s => s.name === state)
-    if (!stateDefinition) {
-      throw Error('Fatal error, this is state machine implementation error. Current state not found in machine states definition.')
-    }
-    return stateDefinition.metadata
-  }
+  // let sourceTargetToTransition = buildSourceTargetToTransition(definition.transitions)
+  let sourceTransitionDestinationMap = buildSourceTransitionDestinationMap(definition.transitions)
 
-  function getStateAfterTransition (fromState, transition) {
-    const foundTransition = findTransitionByName(fromState, transition)
-    if (!foundTransition) {
+  function getDestinationState (fromState, transition) {
+    assertIsValidStateName(fromState)
+    assertIsValidTransitionName(transition)
+    const stateTransitions = sourceTransitionDestinationMap[fromState]
+    if (!stateTransitions) { // it might be that from "fromState" doesn't have any transitions at all
       return undefined
     }
-    return definition.states.find(s => s.name === foundTransition.to)
+    return sourceTransitionDestinationMap[fromState][transition]
   }
 
-  function findStateDefinitionByName (stateName) {
-    return definition.states.find(s => s.name === stateName)
+  function isValidTransitionName (transition) {
+    return !!definition.transitions[transition]
   }
 
-  // Must return null or exactly 1 transition
-  function findTransitionByName (fromState, transition) {
-    return definition.transitions.find(t => t.name === transition && t.from === fromState)
-  }
-
-  // Might return multiple transitions, multiple paths can exist
-  function findTransitionsByStates (fromState, toState) {
-    return definition.transitions.filter(t => t.from === fromState && t.to === toState)
-  }
-
-  // Might return multiple transitions
-  function findTransitionsByName (transition) {
-    return definition.transitions.filter(t => t.name === transition)
+  function isValidStateName (state) {
+    return !!definition.states[state]
   }
 
   function isValidTransition (fromState, transition) {
-    return !!findTransitionByName(fromState, transition)
+    return !!getDestinationState(fromState, transition)
   }
 
-  function dotifyDefinition () {
-    return {}
+  function assertIsValidStateName (state) {
+    if (!isValidStateName(state)) {
+      throw Error(`Unknown state '${state}'. Known states: ${JSON.stringify(Object.keys(definition.states))}`)
+    }
+  }
+
+  function assertIsValidTransitionName (transition) {
+    if (!isValidTransitionName(transition)) {
+      throw Error(`Unknown transition '${transition}'. Known transitions: ${JSON.stringify(Object.keys(definition.transitions))}`)
+    }
+  }
+
+  function getStateMetadata (state) {
+    return definition.states[state].metadata
+  }
+
+  function dotify () {
+    let dot = 'digraph {\n'
+    const states = Object.keys(definition.states)
+    for (const state of states) {
+      const stateDefinition = definition.states[state]
+      let stateProperties = ''
+      console.log(JSON.stringify(stateDefinition))
+      if (stateDefinition.dot) {
+        const properties = Object.keys(stateDefinition.dot)
+        for (const property of properties) {
+          stateProperties += ` ${property}=${stateDefinition.dot[property]} `
+        }
+      }
+      dot += `    ${state} [${stateProperties}]\n`
+    }
+    const sourceStates = Object.keys(sourceTransitionDestinationMap)
+    for (const sourceState of sourceStates) {
+      const availableTransitions = Object.keys(sourceTransitionDestinationMap[sourceState])
+      for (const availableTransition of availableTransitions) {
+        const destinationState = sourceTransitionDestinationMap[sourceState][availableTransition]
+        dot += `    ${sourceState} -> ${destinationState} [label=${availableTransition}];\n`
+      }
+    }
+    dot += '}'
+    return dot
   }
 
   return {
-    getStateMetadata,
-    getStateAfterTransition,
-    findStateDefinitionByName,
+    type: definition.type,
+    initialState: definition.initialState,
     assertIsValidMachineDefinition,
-    findTransitionsByStates,
-    findTransitionsByName,
-    findTransitionByName,
+    isValidTransitionName,
+    assertIsValidTransitionName,
+    isValidStateName,
+    assertIsValidStateName,
     isValidTransition,
-    dotifyDefinition
+    getDestinationState,
+    getStateMetadata,
+    dotify
   }
 }
 

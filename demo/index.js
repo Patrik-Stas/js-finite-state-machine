@@ -1,32 +1,16 @@
-const { createFsmManagerMem } = require('../src/core/storage-strategies/strategy-memory')
-const { createMemKeystore } = require('../src/core/storage-strategies/strategy-memory')
+const path = require('path')
+const { createFsmManager } = require('../src/core/fsm-manager')
+const { createStrategyMemory, createMemKeystore } = require('../src/core/storage-strategies/strategy-memory')
+const { createStrategyRedis } = require('../src/core/storage-strategies/strategy-redis')
+const { createStrategyMongo } = require('../src/core/storage-strategies/strategy-mongo')
 const sleep = require('sleep-promise')
+const { semaphoreDefinition } = require('./semaphore-fsm')
 const util = require('util')
 const MongoClient = require('mongodb')
 const redis = require('redis')
-const { createFsmManagerRedis } = require('../src/core/storage-strategies/strategy-redis')
-const { createFsmManagerMdb } = require('../src/core/storage-strategies/strategy-mongo')
+const fs = require('fs')
 
-const semaphoreDefinition = {
-  initialState: 'off',
-  states: [
-    { name: 'off', metadata: { 'can-pass': false } },
-    { name: 'red', metadata: { 'can-pass': false } },
-    { name: 'orange', metadata: { 'can-pass': false } },
-    { name: 'green', metadata: { 'can-pass': true } }
-  ],
-  transitions: [
-    { name: 'next', from: 'red', to: 'orange' },
-    { name: 'next', from: 'orange', to: 'green' },
-    { name: 'next', from: 'green', to: 'red' },
-    { name: 'disable', from: 'red', to: 'off' },
-    { name: 'disable', from: 'orange', to: 'off' },
-    { name: 'disable', from: 'green', to: 'off' },
-    { name: 'enable', from: 'off', to: 'red' }
-  ]
-}
-
-async function createFsmManager (storageType) {
+async function createStorageStrategy (storageType) {
   // ----- Creating FSM Manager ------
   switch (storageType) {
     case 'mongodb':
@@ -35,27 +19,33 @@ async function createFsmManager (storageType) {
       const mongoHost = await asyncMongoConnect(MONGO_URL)
       const mongoDatabase = await mongoHost.db(`UNIT-TEST-STATEMACHINE`)
       const collection = await mongoDatabase.collection('FSM-DEMO')
-      return createFsmManagerMdb(semaphoreDefinition, collection)
+      return createStrategyMongo(collection)
     case 'redis':
       const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
       const redisClient = redis.createClient(REDIS_URL)
-      return createFsmManagerRedis(semaphoreDefinition, redisClient, 'fsm-demo')
+      return createStrategyRedis(redisClient, 'fsm-demo')
     case 'mem':
     default:
       let memStore = createMemKeystore()
-      return createFsmManagerMem(semaphoreDefinition, memStore)
+      return createStrategyMemory(memStore)
   }
 }
 
 async function start () {
-  const fsmManager = await createFsmManager('mem')
+  const strategy = await createStorageStrategy('mem')
+  const fsmManager = createFsmManager(strategy, semaphoreDefinition)
+  const dotGraph = fsmManager.getFsmDefinitionWrapper().dotify()
+  console.log(`This is dot representation of the state machine:\n${dotGraph}`)
+  const dotPath = path.resolve(__dirname, 'semaphore.dot')
+  fs.writeFileSync(dotPath, dotGraph)
+  console.log('Render and see this graph by running:\nnpm run demo:dotfile:render-and-view')
 
   // ----- ----- ----- ----- -----
   // ----- Creating First FSM ------
   // ----- ----- ----- ----- -----
   // storage managed by fsmManager will be searched for machine with ID 'semaphore1'
   // if it doesn't exist, new machine 'semaphore1' is create in storage and returned.
-  const sema1 = await fsmManager.loadMachine('semaphore1')
+  const sema1 = await fsmManager.machineCreate('semaphore1')
   let sema1state = await sema1.getState()
   // any new machine starts in state 'initialState' from FSM Definition
   console.log(`Semaphore1 is in state ${sema1state}.`)
@@ -104,7 +94,7 @@ async function start () {
   await sema1.transitionFinish()
 
   // if you now reload machine 'semaphore' again, you'll in fact load the same machine.
-  const sema1Reloaded = await fsmManager.loadMachine('semaphore1')
+  const sema1Reloaded = await fsmManager.machineLoad('semaphore1')
   const history = await sema1Reloaded.getHistory()
   console.log(`Current history of Semaphore1 is: ${JSON.stringify(history, null, 2)}`)
   // Current history of Semaphore1 is: [

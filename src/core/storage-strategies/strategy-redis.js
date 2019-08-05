@@ -20,7 +20,7 @@ module.exports.createStrategyRedis = function createStrategyRedis (redisClient, 
     return !!(await redishget(`fsm-${namespace}`, machineKey))
   }
 
-  async function machinesLoadAll () {
+  async function machinesLoad (skip = null, limit = null) {
     const loadedMachines = await redishgetall(`fsm-${namespace}`)
     const machinesData = []
     for (const id of Object.keys(loadedMachines)) {
@@ -38,7 +38,7 @@ module.exports.createStrategyRedis = function createStrategyRedis (redisClient, 
     machineSave,
     machineLoad,
     machineExists,
-    machinesLoadAll,
+    machinesLoad,
     machineDestroy
   }
 }

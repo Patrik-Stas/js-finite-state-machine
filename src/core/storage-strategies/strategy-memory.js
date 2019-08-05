@@ -49,7 +49,7 @@ module.exports.createStrategyMemory = function createStrategyMemory (memKeystore
   /*
    Returns machineData of all machines
    */
-  async function machinesLoadAll () {
+  async function machinesLoad (skip = null, limit = null) {
     const machineIds = memKeystore.getKeys()
     const machines = []
     for (const id in machineIds) {
@@ -62,7 +62,7 @@ module.exports.createStrategyMemory = function createStrategyMemory (memKeystore
     machineSave,
     machineLoad,
     machineExists,
-    machinesLoadAll,
+    machinesLoad,
     machineDestroy
   }
 }

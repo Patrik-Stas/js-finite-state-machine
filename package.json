@@ -1,16 +1,27 @@
 {
   "name": "@patrikstas/finite-state-machine",
-  "version": "2.0.0-dev.4",
+  "version": "2.0.0-dev.5",
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
     "tag": "git tag `cat package.json | jq -r .version`",
     "lint": "standard",
     "demo": "node demo/index.js",
+    "demo:render-dotfile": " dot -Tpng demo/semaphore.dot -o demo/semaphore.png",
+    "demo:open-rendered-dotfile": "open demo/semaphore.png",
+    "demo:dotfile:render-and-view" : "npm run demo:render-dotfile && npm run demo:open-rendered-dotfile",
+    "demo:dotfile": "node demo/index.js && npm run demo:dotfile:render-and-view",
     "test": "npm run test:mem && npm run test:mongo && npm run test:redis",
-    "test:mem": "STORAGE_TYPE=mem jest test",
-    "test:mongo": "STORAGE_TYPE=mongodb jest test",
-    "test:redis": "STORAGE_TYPE=redis jest test"
+    "test:mem": "STORAGE_TYPE=mem jest test/core",
+    "test:mongo": "STORAGE_TYPE=mongodb jest test/core",
+    "test:redis": "STORAGE_TYPE=redis jest test/core",
+    "test:fsm:mem": "STORAGE_TYPE=mem jest test/core/fsm.spec.js",
+    "test:fsm:mongo": "STORAGE_TYPE=mongodb jest test/core/fsm.spec.js",
+    "test:fsm:redis": "STORAGE_TYPE=redis jest test/core/fsm.spec.js",
+    "test:fsm-manager:mem": "STORAGE_TYPE=mem jest test/core/fsm-manager.spec.js",
+    "test:fsm-manager:mongo": "STORAGE_TYPE=mongodb jest test/core/fsm-manager.spec.js",
+    "test:fsm-manager:redis": "STORAGE_TYPE=redis jest test/core/fsm-manager.spec.js",
+    "test:definition": "jest test/core/fsm-definition-wrapper.spec.js"
   },
   "files": [
     "src"

@@ -1,15 +1,15 @@
 module.exports.matterMachineDefinition = {
   type: 'matter',
   initialState: 'solid',
-  states: [
-    { name: 'solid', metadata: { 'tangible': true } },
-    { name: 'liquid', metadata: { 'tangible': true } },
-    { name: 'gas', metadata: { 'tangible': false } }
-  ],
-  transitions: [
-    { name: 'melt', from: 'solid', to: 'liquid' },
-    { name: 'freeze', from: 'liquid', to: 'solid' },
-    { name: 'vaporize', from: 'liquid', to: 'gas' },
-    { name: 'condense', from: 'gas', to: 'liquid' }
-  ]
+  states: {
+    solid: { metadata: { tangible: true } },
+    liquid: { metadata: { tangible: true } },
+    gas: { metadata: { tangible: false } }
+  },
+  transitions: {
+    melt: [{ from: 'solid', to: 'liquid' }],
+    freeze: [{ from: 'liquid', to: 'solid' }],
+    vaporize: [{ from: 'liquid', to: 'gas' }],
+    condense: [{ from: 'gas', to: 'liquid' }]
+  }
 }

@@ -1,0 +1,13 @@
+digraph {
+    off [ shape=circle  style=filled  fillcolor=grey ]
+    red [ shape=circle  style=filled  fillcolor=red ]
+    orange [ shape=circle  style=filled  fillcolor=orange ]
+    green [ shape=circle  style=filled  fillcolor=green ]
+    red -> orange [label=next];
+    red -> off [label=disable];
+    orange -> green [label=next];
+    orange -> off [label=disable];
+    green -> red [label=next];
+    green -> off [label=disable];
+    off -> red [label=enable];
+}
