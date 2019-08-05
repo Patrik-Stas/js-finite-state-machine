@@ -34,20 +34,20 @@ function createStrategyMemory (memKeystore) {
     memKeystore = createMemKeystore()
   }
 
-  const fsmDataSave = (machineId, fsmData) => {
-    memKeystore.set(machineId, fsmData)
+  const fsmDataSave = (fsmId, fsmData) => {
+    memKeystore.set(fsmId, fsmData)
   }
 
-  const fsmFullLoad = (machineId) => {
-    const fsmData = memKeystore.get(machineId)
+  const fsmFullLoad = (fsmId) => {
+    const fsmData = memKeystore.get(fsmId)
     if (!fsmData) {
       return null
     }
-    return { fsmData, machineId }
+    return { fsmData, fsmId }
   }
 
-  async function machineExists (machineId) {
-    return !!(await memKeystore.get(machineId))
+  async function machineExists (fsmId) {
+    return !!(await memKeystore.get(fsmId))
   }
 
   async function fsmDestroy (machineKey) {
@@ -58,10 +58,10 @@ function createStrategyMemory (memKeystore) {
    Returns fsmData of all machines
    */
   async function fsmFullLoadMany (skip = null, limit = null) {
-    const machineIds = memKeystore.getKeys()
+    const fsmIds = memKeystore.getKeys()
     const machines = []
-    for (const machineId in machineIds) {
-      machines.push({ fsmData: memKeystore.get(machineId), machineId })
+    for (const fsmId in fsmIds) {
+      machines.push({ fsmData: memKeystore.get(fsmId), fsmId })
     }
     return machines
   }

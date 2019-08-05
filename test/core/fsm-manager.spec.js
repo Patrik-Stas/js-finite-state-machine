@@ -81,8 +81,8 @@ describe('state machine manager', () => {
     // assert
     expect(machines).toBeDefined()
     expect(machines.length).toBe(2)
-    const loadedMachine = machines.find(m => m.machineId === `1`)
-    const loadedMachine2 = machines.find(m => m.machineId === `2`)
+    const loadedMachine = machines.find(m => m.fsmId === `1`)
+    const loadedMachine2 = machines.find(m => m.fsmId === `2`)
     expect(loadedMachine).toBeDefined()
     expect(loadedMachine2).toBeDefined()
     expect(loadedMachine.fsmData.state).toBe('solid')
@@ -122,7 +122,7 @@ describe('state machine manager', () => {
     const machines = await fsmManager.fsmFullLoadMany(10, 10)
     // assert
     expect(machines.length).toBe(10)
-    expect(machines[0].machineId).toBe('90')
-    expect(machines[9].machineId).toBe('81')
+    expect(machines[0].fsmId).toBe('90')
+    expect(machines[9].fsmId).toBe('81')
   })
 })

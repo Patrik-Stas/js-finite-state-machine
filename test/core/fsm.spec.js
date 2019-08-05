@@ -12,7 +12,7 @@ const util = require('util')
 const sleep = require('sleep-promise')
 
 let stateMachine
-let machineId
+let fsmId
 let fsmManager
 let createStorageStrategy
 let suiteRunId
@@ -53,8 +53,8 @@ beforeEach(async () => {
   }
   let storageStrategy = await createStorageStrategy(suiteRunId)
   fsmManager = createFsmManager(storageStrategy, matterMachineDefinition)
-  machineId = `machine-${uuid.v4()}`
-  stateMachine = await fsmManager.fsmCreate(machineId)
+  fsmId = `machine-${uuid.v4()}`
+  stateMachine = await fsmManager.fsmCreate(fsmId)
 })
 
 beforeEach(async () => {
@@ -104,9 +104,9 @@ describe('state machine with memory storage', () => {
   it('should create machine if initial state if previous was destroyed', async () => {
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
-    await fsmManager.fsmDestroy(machineId)
+    await fsmManager.fsmDestroy(fsmId)
     // assert
-    const stateMachineRecreated = await fsmManager.fsmCreate(machineId)
+    const stateMachineRecreated = await fsmManager.fsmCreate(fsmId)
     expect(await stateMachineRecreated.getState()).toBe('solid')
   })
 
@@ -154,7 +154,7 @@ describe('state machine with memory storage', () => {
 
   it('reloaded machine should have the same data as original', async () => {
     // act
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(machineId)
+    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getFsmData())
@@ -195,7 +195,7 @@ describe('state machine with memory storage', () => {
     const fsmManager2 = createFsmManager(await createStorageStrategy(suiteRunId), editedMachineDefinition)
     let thrownError
     try {
-      await fsmManager2.fsmFullLoad(machineId)
+      await fsmManager2.fsmFullLoad(fsmId)
     } catch (err) {
       thrownError = err
     }
@@ -207,7 +207,7 @@ describe('state machine with memory storage', () => {
     // act
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(machineId)
+    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getFsmData())
@@ -249,7 +249,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
     await stateMachine.transitionStart('freeze')
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(machineId)
+    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
     try {
       await stateMachineReloaded.transitionStart('vaporize')
     } catch (err) {
@@ -267,7 +267,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionFinish()
     // assert
 
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(machineId)
+    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
     expect(await stateMachineReloaded.getState()).toBe('gas')
     expect(await stateMachineReloaded.isInState('gas')).toBeTruthy()
     const history = await stateMachineReloaded.getHistory(true)
@@ -318,8 +318,8 @@ describe('state machine with memory storage', () => {
     expect(await stateMachine.getState()).toBe('liquid')
     expect(await stateMachine.isInState('liquid')).toBeTruthy()
     // act
-    await fsmManager.fsmDestroy(machineId)
-    stateMachine = await fsmManager.fsmCreate(machineId)
+    await fsmManager.fsmDestroy(fsmId)
+    stateMachine = await fsmManager.fsmCreate(fsmId)
     // assert
     expect(await stateMachine.getState()).toBe('solid')
     expect(await stateMachine.isInState('solid')).toBeTruthy()

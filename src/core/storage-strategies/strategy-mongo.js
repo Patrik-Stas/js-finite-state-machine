@@ -1,21 +1,21 @@
 module.exports.createStrategyMongo = function createStrategyMongo (mdbCollection) {
-  async function fsmDataSave (machineId, fsmData) {
+  async function fsmDataSave (fsmId, fsmData) {
     await mdbCollection.updateOne(
-      { machineId },
+      { fsmId },
       { $set: { fsmData } },
       { upsert: true, returnOriginal: false }
     )
   }
 
-  async function fsmFullLoad (machineId) {
+  async function fsmFullLoad (fsmId) {
     const serialized = await mdbCollection.findOne(
-      { machineId }
+      { fsmId }
     )
     return serialized || null
   }
 
-  async function machineExists (machineId) {
-    return mdbCollection.findOne({ machineId })
+  async function machineExists (fsmId) {
+    return mdbCollection.findOne({ fsmId })
   }
 
   async function fsmFullLoadMany (skip = null, limit = null) {
@@ -29,8 +29,8 @@ module.exports.createStrategyMongo = function createStrategyMongo (mdbCollection
     return result.sort({ 'fsmData.utimeCreated': -1 }).toArray()
   }
 
-  async function fsmDestroy (machineId) {
-    await mdbCollection.deleteOne({ machineId })
+  async function fsmDestroy (fsmId) {
+    await mdbCollection.deleteOne({ fsmId })
   }
 
   return {

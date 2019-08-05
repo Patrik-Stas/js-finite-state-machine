@@ -50,7 +50,7 @@ async function loadStateMachine (saveFsmDataData, loadFsmFullFull, fsmDefinition
   const fsm = await loadFsmFullFull()
   if (fsm) {
     if (fsm.fsmData.type !== fsmDefinitionWrapper.type) {
-      throw Error(`Was about to load machine ${JSON.stringify(fsm.machineId)}s. Based on provided FSM Definition the machine was expected to be of type '${fsm.type}' but in fact was of type '${fsmDefinitionWrapper.type}'.`)
+      throw Error(`Was about to load machine ${JSON.stringify(fsm.fsmId)}s. Based on provided FSM Definition the machine was expected to be of type '${fsm.type}' but in fact was of type '${fsmDefinitionWrapper.type}'.`)
     }
   } else {
     throw Error(`Was creating machine by loading from storage, but machine does not exist.`)
@@ -69,7 +69,7 @@ async function createStateMachine (saveFsmDataData, loadFsmFullFull, fsmDefiniti
   }
   const fsm = await loadFsmFullFull()
   if (fsm) {
-    throw Error(`Was about to create new machine '${JSON.stringify(fsm.machineId)}' but machine with such key was already in 
+    throw Error(`Was about to create new machine '${JSON.stringify(fsm.fsmId)}' but machine with such key was already in 
     the storage. This was the found machine: ${JSON.stringify(fsm)}!`)
   } else {
     const utime = Date.now()
