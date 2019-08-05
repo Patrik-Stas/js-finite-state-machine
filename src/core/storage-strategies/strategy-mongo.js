@@ -20,10 +20,10 @@ module.exports.createStrategyMongo = function createStrategyMongo (mdbCollection
 
   async function fsmFullLoadMany (skip = null, limit = null) {
     let result = mdbCollection.find({}, { '_id': 0 })
-    if (skip !== null) {
+    if (skip) {
       result = result.skip(skip)
     }
-    if (limit !== null) {
+    if (limit) {
       result = result.limit(limit)
     }
     return result.sort({ 'fsmData.utimeCreated': -1 }).toArray()
