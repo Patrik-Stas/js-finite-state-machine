@@ -19,7 +19,7 @@ module.exports.createStrategyRedis = function createStrategyRedis (redisClient, 
     return serialized ? { fsmData: JSON.parse(serialized), fsmId } : null
   }
 
-  async function machineExists (machineKey) {
+  async function fsmExists (machineKey) {
     return !!(await redishget(`fsm-${namespace}`, machineKey))
   }
 
@@ -40,7 +40,7 @@ module.exports.createStrategyRedis = function createStrategyRedis (redisClient, 
   return {
     fsmDataSave,
     fsmFullLoad,
-    machineExists,
+    fsmExists,
     fsmFullLoadMany,
     fsmDestroy
   }

@@ -1,5 +1,5 @@
 # 2.0.0-dev.0
-- Added `createMachine` and `machineExists` to storage implementations
+- Added `createMachine` and `fsmExists` to storage implementations
 - Changed behaviour of `loadMachine` - this would previously create new machine if the machine was not found. 
 Now it will throw exception. You have to use `createMachine` to create new machines.
 

@@ -113,16 +113,16 @@ describe('state machine manager', () => {
     expect(machines.length).toBe(10)
   })
 
-  it('should sort by create time descending by default', async () => {
+  it('should sort by descending create time by default', async () => {
     // arrange
     for (let i = 1; i <= 100; i++) {
       await fsmManager.fsmCreate(i.toString())
     }
     // act
-    const machines = await fsmManager.fsmFullLoadMany(10, 10)
+    const machines = await fsmManager.fsmFullLoadMany(0, 10)
     // assert
     expect(machines.length).toBe(10)
-    expect(machines[0].fsmId).toBe('90')
-    expect(machines[9].fsmId).toBe('81')
+    expect(machines[0].fsmId).toBe('100')
+    expect(machines[9].fsmId).toBe('91')
   })
 })

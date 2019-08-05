@@ -14,8 +14,8 @@ module.exports.createStrategyMongo = function createStrategyMongo (mdbCollection
     return serialized || null
   }
 
-  async function machineExists (fsmId) {
-    return mdbCollection.findOne({ fsmId })
+  async function fsmExists (fsmId) {
+    return !!(await mdbCollection.findOne({ fsmId }))
   }
 
   async function fsmFullLoadMany (skip = null, limit = null) {
@@ -36,7 +36,7 @@ module.exports.createStrategyMongo = function createStrategyMongo (mdbCollection
   return {
     fsmDataSave,
     fsmFullLoad,
-    machineExists,
+    fsmExists,
     fsmFullLoadMany,
     fsmDestroy
   }

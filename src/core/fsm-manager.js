@@ -45,7 +45,7 @@ module.exports.createFsmManager = function createFsmManager (storageStrategy, fs
   }
 
   async function fsmFullLoad (fsmId, options) {
-    const exists = await storageStrategy.machineExists(fsmId)
+    const exists = await storageStrategy.fsmExists(fsmId)
     if (!exists) {
       if (options && options.createOnNotFound) {
         return fsmCreate(fsmId)
@@ -62,7 +62,7 @@ module.exports.createFsmManager = function createFsmManager (storageStrategy, fs
   Throws if machine already exists
    */
   async function fsmCreate (fsmId) {
-    const exists = await storageStrategy.machineExists(fsmId)
+    const exists = await storageStrategy.fsmExists(fsmId)
     if (exists) {
       throw Error(`Machine ${JSON.stringify(fsmId)} already exist.`)
     }
@@ -75,7 +75,7 @@ module.exports.createFsmManager = function createFsmManager (storageStrategy, fs
   already exists in storage.
    */
   async function fsmSpawn (fsmId) {
-    const exists = await storageStrategy.machineExists(fsmId)
+    const exists = await storageStrategy.fsmExists(fsmId)
     if (exists) {
       throw Error(`Machine ${JSON.stringify(fsmId)} already exist.`)
     }
@@ -91,12 +91,17 @@ module.exports.createFsmManager = function createFsmManager (storageStrategy, fs
     return storageStrategy.fsmFullLoadMany(skip, limit)
   }
 
+  async function fsmExists (fsmId) {
+    return storageStrategy.fsmExists(fsmId)
+  }
+
   return {
     getFsmDefinitionWrapper,
-    fsmFullLoad,
     fsmCreate,
     fsmSpawn,
-    fsmDestroy,
-    fsmFullLoadMany
+    fsmFullLoad,
+    fsmFullLoadMany,
+    fsmExists,
+    fsmDestroy
   }
 }

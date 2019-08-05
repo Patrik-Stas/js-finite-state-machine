@@ -46,7 +46,7 @@ function createStrategyMemory (memKeystore) {
     return { fsmData, fsmId }
   }
 
-  async function machineExists (fsmId) {
+  async function fsmExists (fsmId) {
     return !!(await memKeystore.get(fsmId))
   }
 
@@ -69,7 +69,7 @@ function createStrategyMemory (memKeystore) {
   return {
     fsmDataSave,
     fsmFullLoad,
-    machineExists,
+    fsmExists,
     fsmFullLoadMany,
     fsmDestroy
   }
