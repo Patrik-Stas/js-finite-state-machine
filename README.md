@@ -1,14 +1,8 @@
 # Javascript Finite State Machine
-Finite State Machines (FSMs) with modular state persistence. Pretty straightforward:
-1. specify your machine model
-2. pick preferred storage for your machines (memory, mongo, redis)
-3. create new or load pre-existing machine instance 
-4. perform transitions and have the state automatically updated in the storage
+Finite State Machines (FSMs) with modular state persistence. 
 
-It can also generate cool pictures of your state machines!
+It can also generate cool pictures of your state machines. Like this `-------->`
 <img align="right" src="docs/semaphore.png">
-
-
 
 - **Where do you want to store state of your state machines?** Memory? Redis? Mongo? 
 Elsewhere? Wherever you like!
@@ -16,14 +10,22 @@ Elsewhere? Wherever you like!
 - **How do you want to manage and identify your state machines?** Single key? 
 Multiple keys? Ordered set? However you like.
 
-The state machine can work with any data layer, however this module comes with batteries 
+The usage of this module is straightforward:
+1. specify your machine model,
+2. pick preferred storage for your machines (memory, mongo, redis),
+3. create new or load pre-existing machine instance ,
+4. perform transitions and have the state automatically updated in the storage.
+
+The state machine can work with any data layer and this module comes with batteries 
 included. 3 storage implementations are included in the module
 - memory
 - redis
 - mongodb
 
-Each of these implementations identifies machines by single id value. However, it's easy to implement storage
+Each of these identifies machines by single id value. However, it's easy to implement storage
 strategy which would identify machines differently.
+
+---
 
 # Installation
 Note the version `2.0.0-rc.X` is not yet 100% stable and a few breaking changes are possible.  
@@ -36,11 +38,7 @@ yarn add @patrikstas/finite-state-machine
 ```
 
 # Tutorial
-You have 2 options:
-1. install the module and start using it in your project based on examples bellow,
-2. or clone repo, try to run demo and examples below
-
-If you decide to go for the second option, this is how you can run demo:
+Clone the repo and run the demo
 ```bash
 git clone https://github.com/Patrik-Stas/js-finite-state-machine.git
 cd  js-finite-state-machine
@@ -81,7 +79,7 @@ const semaphoreDefinition = {
   }
 }
 ```
-See in code at [docs/semaphore.js](`docs/semaphore.js)
+See in code at [docs/semaphore.js](docs/semaphore.js)
 
 ## Creating / Loading state machines
 In general you are supposed to create and load FSM(s) (Finite State Machine(s)) using `FSM Manager`. It 
@@ -105,7 +103,7 @@ async function runExample () {
 }
 runExample()
 ```
-Executable at [docs/step1-creating.js](`docs/step1-creating.js)
+Executable at [docs/step1-creating.js](docs/step1-creating.js)
 
 As you can see, you need 2 pieces to create FSM Manager:
 1. Storage strategy (how and where are machines data serialized/deserialized)
@@ -133,7 +131,7 @@ async function runExample () {
 runExample()
 
 ```
-Executable at [docs/step1-creating.js](`docs/step2-transitioning.js)
+Executable at [docs/step2-transitioning.js](docs/step2-transitioning.js)
 
 The code prints
 ```
@@ -174,7 +172,7 @@ async function runExample () {
 }
 runExample()
 ```
-Executable at [docs/step3-reloading.js](`docs/step3-reloading.js)
+Executable at [docs/step3-reloading.js](docs/step3-reloading.js)
 
 The code prints
 ```
@@ -209,6 +207,7 @@ async function runExample () {
 }
 runExample()
 ```
+Executable at [docs/step4-history.js](docs/step4-history.js)
 
 # Different storage strategies
 The whole thing becomes more useful once we start to use persistent storage implementations!
@@ -239,7 +238,7 @@ async function runExample () {
 }
 runExample()
 ```
-Executable at [docs/step3-reloading.js](`docs/step5a-mongo-storage.js)
+Executable at [docs/step5a-mongo-storage.js](docs/step5a-mongo-storage.js)
 
 The code prints
 ```
@@ -266,6 +265,15 @@ async function runExample () {
 }
 runExample()
 ```
+Executable at [docs/step5b-redis-storage.js](docs/step5b-redis-storage.js)
+
+The code prints
+```
+Semaphore1 is in state red.
+```
+
+# Dotify FSM Definition
+TODO: Example for creating `.dot` file and rendering as image.
 
 ## Tweaking storage for your needs
 All provided storage implementations share the same interface, but it's very likely you will have just
@@ -281,4 +289,8 @@ of this FSM implementation.
 
 
 
-
+#### Todos
+- add package.json commands to run tutorial steps
+- add bin command to package generate and render dotfiles
+- add examples for fsm manager and querying multiple machines
+- note in tutorial that state machine also keep utime of creation and last update
