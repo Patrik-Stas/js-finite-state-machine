@@ -5,8 +5,10 @@ Finite State Machines (FSMs) with modular state persistence. Pretty straightforw
 3. create new or load pre-existing machine instance 
 4. perform transitions and have the state automatically updated in the storage
 
-It can also generate cool pictures of your state machines, like this!
-![](docs/semaphore.png)
+It can also generate cool pictures of your state machines!
+<img align="right" src="docs/semaphore.png">
+
+
 
 - **Where do you want to store state of your state machines?** Memory? Redis? Mongo? 
 Elsewhere? Wherever you like!
