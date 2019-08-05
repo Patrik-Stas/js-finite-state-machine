@@ -44,7 +44,7 @@ module.exports.createFsmManager = function createFsmManager (storageStrategy, fs
     }
   }
 
-  async function fsmFullLoad (fsmId, options) {
+  async function fsmLoad (fsmId, options) {
     const exists = await storageStrategy.fsmExists(fsmId)
     if (!exists) {
       if (options && options.createOnNotFound) {
@@ -99,7 +99,7 @@ module.exports.createFsmManager = function createFsmManager (storageStrategy, fs
     getFsmDefinitionWrapper,
     fsmCreate,
     fsmSpawn,
-    fsmFullLoad,
+    fsmLoad,
     fsmFullLoadMany,
     fsmExists,
     fsmDestroy

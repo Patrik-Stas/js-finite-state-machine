@@ -7,7 +7,7 @@ How? Let's see.
    const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
    let semaphore1 = await fsmManager.fsmCreate('id1')
    await semaphore1.doTransition('enable')
-   let semaphore2 = await fsmManager.fsmFullLoad('id1')
+   let semaphore2 = await fsmManager.fsmLoad('id1')
    // the objects semi1 and semi2 themselves are stateless and all data is always  
    // retrieved from storage we do have 2 representatives of the same machine. hmmm. 
    semaphore1.doTransition('next')

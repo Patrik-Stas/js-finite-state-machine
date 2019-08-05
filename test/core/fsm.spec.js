@@ -154,7 +154,7 @@ describe('state machine with memory storage', () => {
 
   it('reloaded machine should have the same data as original', async () => {
     // act
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
+    const stateMachineReloaded = await fsmManager.fsmLoad(fsmId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getFsmData())
@@ -167,7 +167,7 @@ describe('state machine with memory storage', () => {
     const loadid = uuid.v4()
     // act
     try {
-      await fsmManager.fsmFullLoad(loadid)
+      await fsmManager.fsmLoad(loadid)
     } catch (err) {
       thrownError = err
     }
@@ -195,7 +195,7 @@ describe('state machine with memory storage', () => {
     const fsmManager2 = createFsmManager(await createStorageStrategy(suiteRunId), editedMachineDefinition)
     let thrownError
     try {
-      await fsmManager2.fsmFullLoad(fsmId)
+      await fsmManager2.fsmLoad(fsmId)
     } catch (err) {
       thrownError = err
     }
@@ -207,7 +207,7 @@ describe('state machine with memory storage', () => {
     // act
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
+    const stateMachineReloaded = await fsmManager.fsmLoad(fsmId)
 
     // assert
     const originalStringified = JSON.stringify(await stateMachine.getFsmData())
@@ -249,7 +249,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionStart('melt')
     await stateMachine.transitionFinish()
     await stateMachine.transitionStart('freeze')
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
+    const stateMachineReloaded = await fsmManager.fsmLoad(fsmId)
     try {
       await stateMachineReloaded.transitionStart('vaporize')
     } catch (err) {
@@ -267,7 +267,7 @@ describe('state machine with memory storage', () => {
     await stateMachine.transitionFinish()
     // assert
 
-    const stateMachineReloaded = await fsmManager.fsmFullLoad(fsmId)
+    const stateMachineReloaded = await fsmManager.fsmLoad(fsmId)
     expect(await stateMachineReloaded.getState()).toBe('gas')
     expect(await stateMachineReloaded.isInState('gas')).toBeTruthy()
     const history = await stateMachineReloaded.getHistory(true)

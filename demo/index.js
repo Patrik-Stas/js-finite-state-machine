@@ -93,7 +93,7 @@ async function start () {
   await sema1.transitionFinish()
 
   // if you now reload machine 'semaphore' again, you'll in fact load the same machine.
-  const sema1Reloaded = await fsmManager.fsmFullLoad('semaphore1')
+  const sema1Reloaded = await fsmManager.fsmLoad('semaphore1')
   const history = await sema1Reloaded.getHistory()
   console.log(`Current history of Semaphore1 is: ${JSON.stringify(history, null, 2)}`)
   // Current history of Semaphore1 is: [
