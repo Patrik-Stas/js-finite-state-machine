@@ -1,6 +1,6 @@
 {
   "name": "@patrikstas/finite-state-machine",
-  "version": "2.0.0-rc.0",
+  "version": "2.0.0-rc.1",
   "description": "Lightweight Javascript finite state machine implementation with modular state persistence.",
   "main": "src/index.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "demo": "node demo/index.js",
     "demo:render-dotfile": " dot -Tpng demo/semaphore.dot -o demo/semaphore.png",
     "demo:open-rendered-dotfile": "open demo/semaphore.png",
-    "demo:dotfile:render-and-view" : "npm run demo:render-dotfile && npm run demo:open-rendered-dotfile",
+    "demo:dotfile:render-and-view": "npm run demo:render-dotfile && npm run demo:open-rendered-dotfile",
     "demo:dotfile": "node demo/index.js && npm run demo:dotfile:render-and-view",
     "test": "npm run test:mem && npm run test:mongo && npm run test:redis",
     "test:mem": "STORAGE_TYPE=mem jest test/core",
@@ -33,7 +33,7 @@
     "@babel/core": "^7.5.5",
     "@babel/node": "^7.5.5",
     "@babel/preset-env": "^7.5.5",
-    "@types/jest": "^24.0.11",
+    "@types/jest": "^24.0.16",
     "@types/node-persist": "0.0.33",
     "babel-core": "^7.0.0-bridge.0",
     "babel-jest": "^24.7.1",
@@ -44,8 +44,8 @@
     "redis": "^2.8.0",
     "sleep-promise": "^8.0.1",
     "standard": "^12.0.1",
-    "winston": "^3.2.1",
-    "uuid": "^3.3.2"
+    "uuid": "^3.3.2",
+    "winston": "^3.2.1"
   },
   "repository": "https://github.com/Patrik-Stas/js-finite-state-machine",
   "keywords": [
