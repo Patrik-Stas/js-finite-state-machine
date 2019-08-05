@@ -1,4 +1,4 @@
-module.exports.createMemKeystore = function createMemKeystore () {
+function createMemKeystore () {
   let storage = {}
 
   function set (key, value) {
@@ -29,7 +29,11 @@ module.exports.createMemKeystore = function createMemKeystore () {
 The simplest persistence adapter implementation which is using a keyvalue storage (like the memory implementation above)
 to persist the machine data. Machines are identified by single ID string.
  */
-module.exports.createStrategyMemory = function createStrategyMemory (memKeystore) {
+function createStrategyMemory (memKeystore) {
+  if (!memKeystore) {
+    memKeystore = createMemKeystore()
+  }
+
   const machineSave = (machineId, machineData) => {
     memKeystore.set(machineId, machineData)
   }
@@ -66,3 +70,6 @@ module.exports.createStrategyMemory = function createStrategyMemory (memKeystore
     machineDestroy
   }
 }
+
+module.exports.createMemKeystore = createMemKeystore
+module.exports.createStrategyMemory = createStrategyMemory

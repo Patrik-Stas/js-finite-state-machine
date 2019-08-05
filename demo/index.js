@@ -1,6 +1,6 @@
 const path = require('path')
 const { createFsmManager } = require('../src/core/fsm-manager')
-const { createStrategyMemory, createMemKeystore } = require('../src/core/storage-strategies/strategy-memory')
+const { createStrategyMemory } = require('../src/core/storage-strategies/strategy-memory')
 const { createStrategyRedis } = require('../src/core/storage-strategies/strategy-redis')
 const { createStrategyMongo } = require('../src/core/storage-strategies/strategy-mongo')
 const sleep = require('sleep-promise')
@@ -26,8 +26,7 @@ async function createStorageStrategy (storageType) {
       return createStrategyRedis(redisClient, 'fsm-demo')
     case 'mem':
     default:
-      let memStore = createMemKeystore()
-      return createStrategyMemory(memStore)
+      return createStrategyMemory()
   }
 }
 

@@ -1,6 +1,12 @@
-# Javascript Finite State Machine (version 1.0.x)
-Pretty simplistic Finite State Machines (FSMs) with modular state persistence.  No callbacks, 
-triggers, just doing transitions, checking the rules, persisting and loading the states. 
+# Javascript Finite State Machine
+Finite State Machines (FSMs) with modular state persistence. Pretty straightforward:
+1. specify your machine model
+2. pick preferred storage for your machines (memory, mongo, redis)
+3. create new or load pre-existing machine instance 
+4. perform transitions and have the state automatically updated in the storage
+
+It can also generate cool pictures of your state machines, like this!
+![](docs/semaphore.png)
 
 - **Where do you want to store state of your state machines?** Memory? Redis? Mongo? 
 Elsewhere? Wherever you like!
@@ -14,19 +20,17 @@ included. 3 storage implementations are included in the module
 - redis
 - mongodb
 
-Each of these implementations identifies machines by single id.
-
-But let's take a step back and star from scratch, shall we?
+Each of these implementations identifies machines by single id value. However, it's easy to implement storage
+strategy which would identify machines differently.
 
 # Installation
-Version `2.0.0` of this module is being in development and `2.0.0-dev.x` releases are very unstable. 
-**Please use versions 1.0.x which this documentation as well refers against**  
+Note the version `2.0.0-rc.X` is not yet 100% stable and a few breaking changes are possible.  
 ```
-npm install @patrikstas/finite-state-machine@1.0.3
+npm install @patrikstas/finite-state-machine
 ```
 or 
 ```
-yarn add @patrikstas/finite-state-machine@1.0.3 --exact
+yarn add @patrikstas/finite-state-machine
 ```
 
 # Tutorial
@@ -51,185 +55,146 @@ First we need to specify our state machine. Our state machines are defined by:
 Example:
 ```javascript
 const semaphoreDefinition = {
+  type: 'semaphore',
   initialState: 'off',
-  states: [
-    { name: 'off',    metadata: { 'can-pass': false } },
-    { name: 'red',    metadata: { 'can-pass': false } },
-    { name: 'orange', metadata: { 'can-pass': false } },
-    { name: 'green',  metadata: { 'can-pass': true } }
-  ],
-  transitions: [
-    { name: 'next',    from: 'red',    to: 'orange' },
-    { name: 'next',    from: 'orange', to: 'green' },
-    { name: 'next',    from: 'green',  to: 'red' },
-    { name: 'disable', from: 'red',    to: 'off' },
-    { name: 'disable', from: 'orange', to: 'off' },
-    { name: 'disable', from: 'green',  to: 'off' },
-    { name: 'enable',  from: 'off',    to: 'red' }
-  ]
+  states: {
+    off:    { metadata: { 'can-pass': false } },
+    red:    { metadata: { 'can-pass': false } },
+    orange: { metadata: { 'can-pass': false } },
+    green:  { metadata: { 'can-pass': true } }
+  },
+  transitions: {
+    next: [
+      { from: 'red',    to: 'orange' },
+      { from: 'orange', to: 'green' },
+      { from: 'green',  to: 'red' }],
+    disable: [
+      { from: 'red',    to: 'off' },
+      { from: 'orange', to: 'off' },
+      { from: 'green',  to: 'off' }
+    ],
+    enable: [
+      { from: 'off',    to: 'red' }
+    ]
+  }
 }
 ```
+See in code at [docs/semaphore.js](`docs/semaphore.js)
 
 ## Creating / Loading state machines
-The machines are managed by FSM Managers. They handle all the logic of storing and retrieving
-machines. FSM Managers also decides how to identify machines - it might be single key, unordered or
-ordered set of keys.
-The library comes by default with 3 implementations (in-memory storage, mongodb, redis), all sharing the
-same interface. However this might not fit your need so feel free to implement your own!
+In general you are supposed to create and load FSM(s) (Finite State Machine(s)) using `FSM Manager`. It 
+encompasses common logic and check for such operations. It expects to be supplied `Storage strategy`.
+Storage strategy is a module which implements CRUD operations against particular storage technology.
+The library comes by default with 3 implementations (in-memory storage, mongodb, redis).
+However this might not fit your need so feel free to implement your own!
 
-Okay, let's first create some in-memory state machine.
+Okay, let's first create some in-memory state machine. We'll first create in-memory strategy and then 
+use it to instantiate FSM Manager.
 
 ```javascript
-async function runExample() {
-  let memStore = createMemKeystore()
-  // we are using the the machine definition 'semaphoreDefinition' defined above
-  const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-  
-  // creates object representing state machine identified by ID 'id1' in the storage
-  // if no machine 'id1' exists, machine is created, starting in the state 'initialState' 
-  // in machine definition
-  const sema1 = await fsmManager.loadMachine('id1')
-  console.log(await sema1.getState())
+const { semaphoreDefinition } = require('./semaphore')
+const { createStrategyMemory, createFsmManager } = require('../src')
+
+async function runExample () {
+  let strategyMemory = createStrategyMemory()
+  const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
+  const semaphore = await fsmManager.machineCreate('id-1')
+  console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
 }
 runExample()
 ```
+Executable at [docs/step1-creating.js](`docs/step1-creating.js)
 
-## Transitioning
+As you can see, you need 2 pieces to create FSM Manager:
+1. Storage strategy (how and where are machines data serialized/deserialized)
+2. FSM Definition (what does the FSM Model looks like)
+
+## Transitioning the Finite State machines
+Now that we have FSM Manager, let's create some machine.
 The machine will only perform a transitions as far as it's valid transition according to current machine
 state and machine definition.
 ```javascript
-async function runExample() {
-  let memStore = createMemKeystore()
-  const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-  const sema1 = await fsmManager.loadMachine('id1')
-  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
-  
-  // function doTransition(transitionName) invokes transitions. If the transition 
-  // is valid according to provided FSM definition, machine changes its state.
-  await sema1.doTransition('enable')
-  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
-}
-runExample()
-```
-This will print
-```
-Semaphore1 is in state off.
-Semaphore1 is in state red.
-```
+const { semaphoreDefinition } = require('./semaphore')
+const { createStrategyMemory, createFsmManager } = require('../src')
 
-
-## 2 step transitioning
-You can choose to perform transitions in 2 steps. First start of transition and later 
-finalizing started transition.
-```javascript
 async function runExample () {
-  let memStore = createMemKeystore()
-  const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-  const sema1 = await fsmManager.loadMachine('id1')
-  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
+  let strategyMemory = createStrategyMemory()
+  const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
+  const semaphore = await fsmManager.machineCreate('id-1')
+  console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
 
-  // There's also option to do transition in 2 steps. This might come handy 
-  // if you can't perform related state changes atomically.
-  await sema1.transitionStart('enable')
-  await sleep(100) // do some IO operations
-  // sema1.getState() this would throw, machine state is not clear as its currently transitioning
-  // sema1.doTransition('next') this would throw, because machine is already transitioning
-  await sema1.transitionFinish()
-  console.log(`Semaphore1 is in state ${ await sema1.getState()}.`)
+  // function doTransition(transitionName) invokes transitions. If the transition
+  // is valid according to provided FSM definition, machine changes its state.
+  await semaphore.doTransition('enable')
+  console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
 }
 runExample()
+
 ```
-This will print
+Executable at [docs/step1-creating.js](`docs/step2-transitioning.js)
+
+The code prints
 ```
 Semaphore1 is in state off.
 Semaphore1 is in state red.
 ```
+When we call `machineCreate`, the machine with given ID is persisted in the storage, starting in state 
+specified by `initialState` from the machine definition. The function returns us an object which is 
+used to further access and manipulate this particular machine representation in the storage.
+
+When we call `doTransition`, current state is loaded from storage, checks are performed whether requested
+transition is possible (according to supplied machine definition). If yes, updated state is persisted in storage.
 
 # Reloading 
 As FSM Manager handles machine persistence, you can create machine, 
 do some transitions  and forget about. Then later ask FSM Manager for 
 the machine with the same ID and you have it back! 
 ```javascript
-async function runExample() {
-  let memStore = createMemKeystore()
-  const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-  let sema1 = await fsmManager.loadMachine('id1')
-  
-  await sema1.doTransition('enable')
-  sema1state = await sema1.getState()
+const { semaphoreDefinition } = require('./semaphore')
+const { createStrategyMemory, createFsmManager } = require('../src')
+
+async function runExample () {
+  let strategyMemory = createStrategyMemory()
+  const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
+  let semaphore = await fsmManager.machineCreate('id-1')
+  console.log(`Semaphore1 is in state ${await semaphore.getState()}.`)
+
+  await semaphore.doTransition('enable')
+  sema1state = await semaphore.getState()
   console.log(`Semaphore1 is in state ${sema1state}.`)
   // let's forget about our semaphore instance for now
-  delete sema1
-  
+  delete semaphore
+
   // just to find it later again!
-  const sema1Reloaded = await fsmManager.loadMachine('id1')
-  sema1state = await sema1Reloaded.getState()
+  const semaphoreReloaded = await fsmManager.machineLoad('id-1')
+  sema1state = await semaphoreReloaded.getState()
   console.log(`Reloaded Semaphore1 is in state ${sema1state}.`)
 }
 runExample()
 ```
-This will print
+Executable at [docs/step3-reloading.js](`docs/step3-reloading.js)
+
+The code prints
 ```
 Semaphore1 is in state red.
 Reloaded Semaphore1 is in state red.
 ```
-
-This seems like a good place to warn you about a terrible trap! Race conditions! Node event loop is running
-in a single thread, but that doesn't mean race conditions can't happen when there's IO involved. 
-How? Let's see.
- ```javascript
- async function runExample() {
-   let memStore = createMemKeystore()
-   const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-   let sema1 = await fsmManager.loadMachine('id1')
-   await sema1.doTransition('enable')
-   let sema2 = await fsmManager.loadMachine('id1')
-   // the objects semi1 and semi2 themselves are stateless and all data is always  
-   // retrieved from storage we do have 2 representatives of the same machine. hmmm. 
-   sema1.doTransition('next')
-   sema2.doTransition('disable')
- }
- runExample()
- ```
- When you try to do transition, the machine always checks its current state in storage, checks that
- the requested transition is doable from that state and if yes, it performs the transition and changes
- current state.
- In ideal case, the machine will first run next transition and then it will be disabled. But what if:
- - execution of `next` begins. It check current state and it's `red`. `next` is valid transition 
- into `orange`.
- - execution of `disable` reads current data before state in storage changes to `orange`. it seems that 
- `disable` is valid transition from state `red` into `off`. 
- - This is where trouble beings. Because transitions are not atomic (2 io operations: read current 
- state, write updated state), we have now 2 simultaneous transitions running at the same time. 
- - This might cause invalid transition order and inconsistent transition history records. Assuming that
- update of `disable` transition reaches database first (absolutely possible), we'll end up with following
- transition history 
- ```
-off -> enable
-red -> disable
-red -> next
-``` 
-and state `orange`. The history of transitions is inconsistent and we can't really tell what happened.
-
-In this example, the problem was pretty obvious. But if you are changing states of machines as results
-of HTTP Requests hitting up your server, described scenario might be harder to see. 
-
-The bottom line is that this library doesn't handle race conditions and you need to take care of 
-that yourself using some sort of locking mechanism. You need to assure atomicity of a single state 
-machine updates yourself.  
  
 # History
 ```javascript
-async function runExample() {
-  let memStore = createMemKeystore()
-  const fsmManager = createFsmManagerMem(semaphoreDefinition, memStore)
-  const sema1 = await fsmManager.loadMachine('id1')
-  console.log(await machine1.getState())
-  await sema1.doTransition('enable')
-  await sema1.doTransition('next')
-  const sema1Reloaded = await fsmManager.loadMachine('semaphore1')
-  const history = await sema1Reloaded.getHistory()
-  console.log(`Current history of Semaphore1 is: ${JSON.stringify(history, null, 2)}`)
+const { semaphoreDefinition } = require('./semaphore')
+const { createStrategyMemory, createFsmManager } = require('../src')
+
+async function runExample () {
+  let strategyMemory = createStrategyMemory()
+  const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
+  const semaphore = await fsmManager.machineCreate('id-1')
+  console.log(await semaphore.getState())
+  await semaphore.doTransition('enable')
+  await semaphore.doTransition('next')
+  const semaphoreReloaded = await fsmManager.machineLoad('id-1')
+  const history = await semaphoreReloaded.getHistory()
+  console.log(`Current history of Semaphore id-1 is: ${JSON.stringify(history, null, 2)}`)
   // Current history of Semaphore1 is: [
   //   {
   //     "state": "off",
@@ -243,41 +208,59 @@ async function runExample() {
 runExample()
 ```
 
-# Using different storages
+# Different storage strategies
 The whole thing becomes more useful once we start to use persistent storage implementations!
 The module comes with 3 reference implementations of storage layer - memory, MongoDB and Redis.
 We've previously used in-memory storage for case of simplicity. Let's try Mongo and Redis.
 
 #### Mongo storage
 ```javascript
-async function runExample() {
+const { createStrategyMongo } = require('../src')
+const { semaphoreDefinition } = require('./semaphore')
+const { createFsmManager } = require('../src')
+const util = require('util')
+const MongoClient = require('mongodb')
+
+async function runExample () {
   const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
   const asyncMongoConnect = util.promisify(MongoClient.connect)
   const mongoHost = await asyncMongoConnect(MONGO_URL)
-  const mongoDatabase = await mongoHost.db(`UNIT-TEST-STATEMACHINE`)
-  const collection = await mongoDatabase.collection('FSM-DEMO')
-  return createFsmManagerMdb(semaphoreDefinition, collection)
-  
+  const mongoDatabase = await mongoHost.db(`FSM-DEMO`)
+  const collection = await mongoDatabase.collection(`FSM-DEMO-${Date.now()}`)
+
   // and we can use it exactly like we did previously
-  let sema1 = await fsmManager.loadMachine('id1')
-  await sema1.doTransition('enable')
-  console.log(`Semaphore1 is in state ${await sema1.getState()}.`)
-    
+  const strategy = createStrategyMongo(collection)
+  const fsmManager = createFsmManager(strategy, semaphoreDefinition)
+  let semaphore = await fsmManager.machineCreate('id1')
+  await semaphore.doTransition('enable')
+  console.log(`Semaphore is in state ${await semaphore.getState()}.`)
 }
 runExample()
+```
+Executable at [docs/step3-reloading.js](`docs/step5a-mongo-storage.js)
+
+The code prints
+```
+Semaphore1 is in state red.
 ```
 
 #### Redis storage
 ```javascript
-async function runExample() {
+const { createStrategyRedis } = require('../src')
+const { semaphoreDefinition } = require('./semaphore')
+const { createFsmManager } = require('../src')
+const redis = require('redis')
+
+async function runExample () {
   const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
   const redisClient = redis.createClient(REDIS_URL)
-  return createFsmManagerRedis(semaphoreDefinition, redisClient, 'fsm-demo')   
-  
+
   // and we can use it exactly like we did previously
-  let sema1 = await fsmManager.loadMachine('id1')
-  await sema1.doTransition('enable')
-  console.log(`Semaphore1 is in state ${await sema1.getState()}.`)
+  const strategy = createStrategyRedis(redisClient, 'fsm-demo')
+  const fsmManager = createFsmManager(strategy, semaphoreDefinition)
+  let semaphore = await fsmManager.machineCreate('id1')
+  await semaphore.doTransition('enable')
+  console.log(`Semaphore is in state ${await semaphore.getState()}.`)
 }
 runExample()
 ```
