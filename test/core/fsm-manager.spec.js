@@ -4,12 +4,13 @@ const { createMemKeystore } = require('../../src/core/storage-strategies/strateg
 const { createStrategyMemory } = require('../../src/core/storage-strategies/strategy-memory')
 const { createStrategyMongo } = require('../../src/core/storage-strategies/strategy-mongo')
 const { createStrategyRedis } = require('../../src/core/storage-strategies/strategy-redis')
+const { filterFsm } = require('../../src/core/filter-builder')
 const { matterMachineDefinition } = require('./../common')
 const MongoClient = require('mongodb')
 const redis = require('redis')
 const uuid = require('uuid')
 const util = require('util')
-// const sleep = require('sleep-promise')
+const sleep = require('sleep-promise')
 
 let fsmManager
 let createStorageStrategy
@@ -17,8 +18,9 @@ let suiteRunId
 
 let mongoDatabase
 let redisClient
+let storageStrategy
 
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mem'
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mongodb'
 
 beforeEach(async () => {
   suiteRunId = `${uuid.v4()}`
@@ -49,7 +51,7 @@ beforeEach(async () => {
   } else {
     throw Error(`Unknown storage type '${STORAGE_TYPE}'.`)
   }
-  let storageStrategy = await createStorageStrategy(suiteRunId)
+  storageStrategy = await createStorageStrategy(suiteRunId)
   fsmManager = createFsmManager(storageStrategy, matterMachineDefinition)
 })
 
@@ -124,5 +126,112 @@ describe('state machine manager', () => {
     expect(machines.length).toBe(10)
     expect(machines[0].fsmId).toBe('100')
     expect(machines[9].fsmId).toBe('91')
+  })
+
+  it('should retrieve machines by state', async () => {
+    // arrange
+    for (let i = 1; i <= 50; i++) {
+      let fsm = await fsmManager.fsmCreate(i.toString())
+      if (i < 20) {
+        await fsm.doTransition(matterMachineDefinition.transitions.melt)
+      }
+    }
+    const filter = filterFsm.filterByStates([matterMachineDefinition.states.liquid])
+    // act
+    const machines = await fsmManager.fsmFullLoadMany(null, null, filter)
+    // assert
+    expect(machines.length).toBe(19)
+  })
+
+  it('should retrieve machines by multiple states', async () => {
+    // arrange
+    for (let i = 1; i <= 50; i++) {
+      let fsm = await fsmManager.fsmCreate(i.toString())
+      if (i < 20) {
+        await fsm.doTransition(matterMachineDefinition.transitions.melt)
+      }
+      if (i < 10) {
+        await fsm.doTransition(matterMachineDefinition.transitions.vaporize)
+      }
+    }
+    const filter = filterFsm.filterByStates([matterMachineDefinition.states.liquid, matterMachineDefinition.states.gas])
+    // act
+    const machines = await fsmManager.fsmFullLoadMany(null, null, filter)
+    // assert
+    expect(machines.length).toBe(19)
+  })
+
+  it('should retrieve machines created before certain utime', async () => {
+    // arrange
+    let utimeMid
+    for (let i = 1; i <= 50; i++) {
+      await fsmManager.fsmCreate(i.toString())
+      if (i === 30) {
+        utimeMid = Date.now()
+      }
+      await sleep(1)
+    }
+    const filter = filterFsm.filterCreatedBefore(utimeMid)
+    // act
+    const machines = await fsmManager.fsmFullLoadMany(null, null, filter)
+    // assert
+    expect(machines.length).toBe(30)
+  })
+
+  it('should retrieve machines created after certain utime', async () => {
+    // arrange
+    let utimeMid
+    for (let i = 1; i <= 50; i++) {
+      await fsmManager.fsmCreate(i.toString())
+      if (i === 30) {
+        utimeMid = Date.now()
+      }
+      await sleep(1)
+    }
+    const filter = filterFsm.filterCreatedAfter(utimeMid)
+    // act
+    const machines = await fsmManager.fsmFullLoadMany(null, null, filter)
+    // assert
+    expect(machines.length).toBe(20)
+  })
+
+  it('should retrieve machines updated after certain utime', async () => {
+    // arrange
+    let utimeMid
+    for (let i = 1; i <= 50; i++) {
+      await fsmManager.fsmCreate(i.toString())
+    }
+    for (let i = 10; i <= 30; i++) {
+      const fsm = await fsmManager.fsmLoad(i.toString())
+      if (i === 25) {
+        utimeMid = Date.now()
+      }
+      await fsm.doTransition(matterMachineDefinition.transitions.melt)
+    }
+    const filter = filterFsm.filterUpdatedAfter(utimeMid)
+    // act
+    const machines = await fsmManager.fsmFullLoadMany(null, null, filter)
+    // assert
+    expect(machines.length).toBe(6)
+  })
+
+  it('should retrieve machines updated before certain utime', async () => {
+    // arrange
+    let utimeMid
+    for (let i = 1; i <= 50; i++) {
+      await fsmManager.fsmCreate(i.toString())
+    }
+    for (let i = 10; i <= 30; i++) {
+      const fsm = await fsmManager.fsmLoad(i.toString())
+      if (i === 25) {
+        utimeMid = Date.now()
+      }
+      await fsm.doTransition(matterMachineDefinition.transitions.melt)
+    }
+    const filter = filterFsm.filterUpdatedBefore(utimeMid)
+    // act
+    const machines = await fsmManager.fsmFullLoadMany(null, null, filter)
+    // assert
+    expect(machines.length).toBe(44)
   })
 })

@@ -23,7 +23,19 @@ module.exports.createStrategyRedis = function createStrategyRedis (redisClient, 
     return !!(await redishget(`fsm-${namespace}`, machineKey))
   }
 
-  async function fsmFullLoadMany (skip = null, limit = null) {
+  async function fsmFullLoadMany (skip = null, limit = null, filter = null, sort = null) {
+    if (skip) {
+      throw Error('skip not implemented')
+    }
+    if (limit) {
+      throw Error('limit not implemented')
+    }
+    if (filter) {
+      throw Error('filter not implemented')
+    }
+    if (sort) {
+      throw Error('sort not implemented')
+    }
     const loadedMachines = await redishgetall(`fsm-${namespace}`)
     const machinesData = []
     for (const fsmId of Object.keys(loadedMachines)) {

@@ -1,37 +1,12 @@
 const path = require('path')
 const { createFsmManager } = require('../src/core/fsm-manager')
-const { createStrategyMemory } = require('../src/core/storage-strategies/strategy-memory')
-const { createStrategyRedis } = require('../src/core/storage-strategies/strategy-redis')
-const { createStrategyMongo } = require('../src/core/storage-strategies/strategy-mongo')
 const sleep = require('sleep-promise')
 const { semaphoreDefinition } = require('./semaphore-fsm')
-const util = require('util')
-const MongoClient = require('mongodb')
-const redis = require('redis')
 const fs = require('fs')
-
-async function createStorageStrategy (storageType) {
-  // ----- Creating FSM Manager ------
-  switch (storageType) {
-    case 'mongodb':
-      const MONGO_URL = process.env.MONGO_URL || 'mongodb://localhost:27017'
-      const asyncMongoConnect = util.promisify(MongoClient.connect)
-      const mongoHost = await asyncMongoConnect(MONGO_URL)
-      const mongoDatabase = await mongoHost.db(`UNIT-TEST-STATEMACHINE`)
-      const collection = await mongoDatabase.collection('FSM-DEMO')
-      return createStrategyMongo(collection)
-    case 'redis':
-      const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379'
-      const redisClient = redis.createClient(REDIS_URL)
-      return createStrategyRedis(redisClient, 'fsm-demo')
-    case 'mem':
-    default:
-      return createStrategyMemory()
-  }
-}
+const { createMongoStorage } = require('./demo-common')
 
 async function start () {
-  const strategy = await createStorageStrategy('mem')
+  const strategy = await createMongoStorage()
   const fsmManager = createFsmManager(strategy, semaphoreDefinition)
   const dotGraph = fsmManager.getFsmDefinitionWrapper().dotify()
   console.log(`This is dot representation of the state machine:\n${dotGraph}`)

@@ -18,15 +18,17 @@ module.exports.createStrategyMongo = function createStrategyMongo (mdbCollection
     return !!(await mdbCollection.findOne({ fsmId }))
   }
 
-  async function fsmFullLoadMany (skip = null, limit = null) {
-    let result = mdbCollection.find({}, { '_id': 0 })
+  async function fsmFullLoadMany (skip = null, limit = null, filter = null, sort = null) {
+    filter = filter || {}
+    let result = mdbCollection.find(filter, { '_id': 0 })
     if (skip) {
       result = result.skip(skip)
     }
     if (limit) {
       result = result.limit(limit)
     }
-    return result.sort({ 'fsmData.utimeCreated': -1 }).toArray()
+    sort = sort || { 'fsmData.utimeCreated': -1 }
+    return result.sort(sort).toArray()
   }
 
   async function fsmDestroy (fsmId) {

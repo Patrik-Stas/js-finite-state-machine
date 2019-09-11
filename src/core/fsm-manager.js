@@ -87,8 +87,16 @@ module.exports.createFsmManager = function createFsmManager (storageStrategy, fs
     await storageStrategy.fsmDestroy(fsmId)
   }
 
+  /*
+  Returns raw full machine from database:
+  {
+    fsmData: {}
+    fsmId: {}
+  }
+  You can use their fsmId values to spawn machines in memory (using 'fsmSpawn(id)' method) and actions upon them.
+   */
   async function fsmFullLoadMany (skip = null, limit = null, filter = null, sort = null) {
-    return storageStrategy.fsmFullLoadMany(skip, limit)
+    return storageStrategy.fsmFullLoadMany(skip, limit, filter, sort)
   }
 
   async function fsmExists (fsmId) {

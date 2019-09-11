@@ -3,7 +3,6 @@ const { buildSourceTransitionDestinationMap } = require('./fsm-definition-utils'
 
 // TODO: Add checks:
 // - multiple identical transition definitions,
-// -
 function assertIsValidMachineDefinition (definition) {
   if (!definition.initialState) {
     throw Error('Initial state is not defined.')
@@ -14,13 +13,46 @@ function assertIsValidMachineDefinition (definition) {
   if (Object.keys(definition.states).length === 0) {
     throw Error('At least one state must be defined.')
   }
+  const stateKeys = Object.keys(definition.states)
+  for (const stateKey of stateKeys) {
+    const stateValue = definition.states[stateKey]
+    if (stateValue !== stateKey) {
+      throw Error('In machine definition, each key under "states" field must have same value as the key itself.' +
+        `In your definition, "states.${stateKey}" has value "${stateValue}" but should be "${stateKey}".`)
+    }
+  }
+  if (definition.definitionStates) {
+    for (const stateWithMetadata of Object.keys(definition.definitionStates)) {
+      if (!definition.states[stateWithMetadata]) {
+        throw Error(`definitionStates is specifying state called ${stateWithMetadata} but no such state was listed under states`)
+      }
+    }
+  }
+
   if (!definition.transitions) {
     throw Error('Transitions must be defined.')
   }
-  for (const transition of Object.keys(definition.transitions)) {
-    const transitionDefinition = definition.transitions[transition]
+  const transitionKeys = Object.keys(definition.transitions)
+  for (const transitionKey of transitionKeys) {
+    const transitionValue = definition.transitions[transitionKey]
+    if (transitionValue !== transitionKey) {
+      throw Error('In machine definition, each key under "transitions" field must have same value as the key itself.' +
+        `In your definition, "states.${transitionKey}" has value "${transitionValue}" but should be "${transitionKey}".`)
+    }
+  }
+  if (!definition.definitionTransitions) {
+    throw Error('Transitions metadata must be defined.')
+  }
+  for (const transitionMetadataKey of Object.keys(definition.definitionTransitions)) {
+    if (!definition.transitions[transitionMetadataKey]) {
+      throw Error(`definitionTransitions is specifying transition called ${transitionMetadataKey}` +
+          ` but no such transition was listed under transitions`)
+    }
+  }
+  for (const transitionWithMeta of Object.keys(definition.definitionTransitions)) {
+    const transitionDefinition = definition.definitionTransitions[transitionWithMeta]
     if (!Array.isArray(transitionDefinition)) {
-      throw Error(`Definition of transition ${transition} is not array.`)
+      throw Error(`Definition of transition ${transitionWithMeta} is not array.`)
     }
   }
   try {
@@ -28,8 +60,8 @@ function assertIsValidMachineDefinition (definition) {
   } catch (err) {
     throw Error(`Initial state value refers state '${definition.initialState}' which was not declared.`)
   }
-  for (const transition of Object.keys(definition.transitions)) {
-    const transitionDefinition = definition.transitions[transition]
+  for (const transition of Object.keys(definition.definitionTransitions)) {
+    const transitionDefinition = definition.definitionTransitions[transition]
     if (transitionDefinition.legth === 0) {
       throw Error(`Transition '${transition}' must be have defined at least one state pair.`)
     }
@@ -49,7 +81,7 @@ function createFsmDefinitionWrapper (definition) {
   assertIsValidMachineDefinition(definition)
 
   // let sourceTargetToTransition = buildSourceTargetToTransition(definition.transitions)
-  let sourceTransitionDestinationMap = buildSourceTransitionDestinationMap(definition.transitions)
+  let sourceTransitionDestinationMap = buildSourceTransitionDestinationMap(definition.definitionTransitions)
 
   function getDestinationState (fromState, transition) {
     assertIsValidStateName(fromState)
@@ -62,7 +94,7 @@ function createFsmDefinitionWrapper (definition) {
   }
 
   function isValidTransitionName (transition) {
-    return !!definition.transitions[transition]
+    return !!definition.definitionTransitions[transition]
   }
 
   function isValidStateName (state) {
@@ -81,25 +113,24 @@ function createFsmDefinitionWrapper (definition) {
 
   function assertIsValidTransitionName (transition) {
     if (!isValidTransitionName(transition)) {
-      throw Error(`Unknown transition '${transition}'. Known transitions: ${JSON.stringify(Object.keys(definition.transitions))}`)
+      throw Error(`Unknown transition '${transition}'. Known transitions: ${JSON.stringify(Object.keys(definition.definitionTransitions))}`)
     }
   }
 
   function getStateMetadata (state) {
-    return definition.states[state].metadata
+    return (definition.definitionStates && definition.definitionStates[state]) ? definition.definitionStates[state].metadata : {}
   }
 
   function dotify () {
     let dot = 'digraph {\n'
     const states = Object.keys(definition.states)
     for (const state of states) {
-      const stateDefinition = definition.states[state]
+      const stateMetadata = definition.definitionStates[state]
       let stateProperties = ''
-      console.log(JSON.stringify(stateDefinition))
-      if (stateDefinition.dot) {
-        const properties = Object.keys(stateDefinition.dot)
+      if (stateMetadata.dot) {
+        const properties = Object.keys(stateMetadata.dot)
         for (const property of properties) {
-          stateProperties += ` ${property}=${stateDefinition.dot[property]} `
+          stateProperties += ` ${property}=${stateMetadata.dot[property]} `
         }
       }
       dot += `    ${state} [${stateProperties}]\n`

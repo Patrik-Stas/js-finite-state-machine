@@ -57,7 +57,19 @@ function createStrategyMemory (memKeystore) {
   /*
    Returns fsmData of all machines
    */
-  async function fsmFullLoadMany (skip = null, limit = null) {
+  async function fsmFullLoadMany (skip = null, limit = null, filter = null, sort = null) {
+    if (skip) {
+      throw Error('skip not implemented')
+    }
+    if (limit) {
+      throw Error('limit not implemented')
+    }
+    if (filter) {
+      throw Error('filter not implemented')
+    }
+    if (sort) {
+      throw Error('sort not implemented')
+    }
     const fsmIds = memKeystore.getKeys()
     const machines = []
     for (const fsmId in fsmIds) {

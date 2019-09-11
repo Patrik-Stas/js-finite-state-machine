@@ -4,6 +4,7 @@ const { createStrategyRedis } = require('./core/storage-strategies/strategy-redi
 const { createStrategyMongo } = require('./core/storage-strategies/strategy-mongo')
 const { assertIsValidMachineDefinition } = require('./core/fsm-definition-wrapper')
 const { createFsmManager } = require('./core/fsm-manager')
+const { filterFsm } = require('./core/filter-builder')
 
 module.exports = {
   assertIsValidMachineDefinition,
@@ -11,5 +12,6 @@ module.exports = {
   createMemKeystore,
   createStrategyRedis,
   createStrategyMongo,
-  createFsmManager
+  createFsmManager,
+  filterFsm
 }

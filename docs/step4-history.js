@@ -1,9 +1,10 @@
+const { createMongoStorage } = require('../demo/demo-common')
 const { semaphoreDefinition } = require('./semaphore')
-const { createStrategyMemory, createFsmManager } = require('../src')
+const { createFsmManager } = require('../src')
 
 async function runExample () {
-  let strategyMemory = createStrategyMemory()
-  const fsmManager = createFsmManager(strategyMemory, semaphoreDefinition)
+  const strategy = await createMongoStorage()
+  const fsmManager = createFsmManager(strategy, semaphoreDefinition)
   const semaphore = await fsmManager.fsmCreate('id-1')
   console.log(await semaphore.getState())
   await semaphore.doTransition('enable')

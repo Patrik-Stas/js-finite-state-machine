@@ -7,11 +7,15 @@ const simpleMatterDefinition = {
   initialState: 'solid',
   name: 'matter',
   states: {
-    solid: {},
-    liquid: {},
-    gas: {}
+    solid: 'solid',
+    liquid: 'liquid',
+    gas: 'gas'
   },
   transitions: {
+    melt: 'melt',
+    vaporize: 'vaporize'
+  },
+  definitionTransitions: {
     melt: [{ from: 'solid', to: 'liquid' }],
     vaporize: [{ from: 'liquid', to: 'gas' }]
   }
@@ -21,11 +25,22 @@ const machineWithStyles = {
   type: 'matter',
   initialState: 'solid',
   states: {
+    solid: 'solid',
+    liquid: 'liquid',
+    gas: 'gas'
+  },
+  transitions: {
+    melt: 'melt',
+    freeze: 'freeze',
+    vaporize: 'vaporize',
+    condense: 'condense'
+  },
+  definitionStates: {
     solid: { metadata: { tangible: true }, dot: { shape: 'square' } },
     liquid: { metadata: { tangible: true }, dot: { style: 'filled', fillcolor: 'orange' } },
     gas: { metadata: { tangible: false }, dot: { shape: 'circle', style: 'filled', fillcolor: 'grey' } }
   },
-  transitions: {
+  definitionTransitions: {
     melt: [{ from: 'solid', to: 'liquid' }],
     freeze: [{ from: 'liquid', to: 'solid' }],
     vaporize: [{ from: 'liquid', to: 'gas' }],
@@ -38,13 +53,69 @@ describe('state machine definition utils', () => {
     assertIsValidMachineDefinition(matterMachineDefinition)
   })
 
+  it('definitionStates should be optional', async () => {
+    let modified = matterMachineDefinition
+    modified['definitionStates'] = null
+    assertIsValidMachineDefinition(modified)
+  })
+
+  it('should throw error if definitionStates contains state not declared in states', async () => {
+    const definition = {
+      name: 'matter',
+      initialState: 'gas',
+      states: {
+        gas: 'gas'
+      },
+      transitions: {},
+      definitionStates: {
+        gasoline: { metadata: {}, dot: {} }
+      },
+      definitionTransitions: {}
+    }
+    let thrownError
+    try {
+      assertIsValidMachineDefinition(definition)
+    } catch (err) {
+      thrownError = err
+    }
+    expect(thrownError.toString().includes('definitionStates is specifying state called gasoline but no such state was listed under states')).toBeTruthy()
+  })
+
+  it('should throw error if definitionTransitions contains transition not declared in transitions', async () => {
+    const definition = {
+      name: 'matter',
+      initialState: 'gas',
+      states: {
+        gas: 'gas',
+        liquid: 'liquid'
+      },
+      transitions: {
+        condense: 'condense'
+      },
+      definitionTransitions: {
+        condense: [{ from: 'gas', to: 'liquid' }],
+        vaporize: [{ from: 'liquid', to: 'gas' }]
+      }
+    }
+    let thrownError
+    try {
+      assertIsValidMachineDefinition(definition)
+    } catch (err) {
+      thrownError = err
+    }
+    console.log(thrownError.toString())
+    expect(thrownError.toString().includes('definitionTransitions is specifying transition called vaporize but no such transition was listed under transitions')).toBeTruthy()
+  })
+
   it('should throw error if initial state is not defined', async () => {
     const definition = {
       name: 'matter',
       states: {
-        gas: {}
+        gas: 'gas'
       },
-      transitions: {}
+      transitions: {},
+      definitionStates: {},
+      definitionTransitions: {}
     }
     let thrownError
     try {
@@ -60,9 +131,11 @@ describe('state machine definition utils', () => {
       name: 'matter',
       initialState: 'solid',
       states: {
-        gas: {}
+        gas: 'gas'
       },
-      transitions: {}
+      transitions: {},
+      definitionStates: {},
+      definitionTransitions: {}
     }
     let thrownError
     try {
@@ -78,10 +151,14 @@ describe('state machine definition utils', () => {
       name: 'matter',
       initialState: 'solid',
       states: {
-        solid: {},
-        liquid: {}
+        solid: 'solid',
+        liquid: 'liquid'
       },
       transitions: {
+        melt: 'melt',
+        vaporize: 'vaporize'
+      },
+      definitionTransitions: {
         melt: [{ from: 'solid', to: 'liquid' }],
         vaporize: [{ from: 'liquid', to: 'gas' }]
       }
@@ -100,10 +177,14 @@ describe('state machine definition utils', () => {
       name: 'matter',
       initialState: 'solid',
       states: {
-        solid: {},
-        liquid: {}
+        solid: 'solid',
+        liquid: 'liquid'
       },
       transitions: {
+        melt: 'melt',
+        foo: 'foo'
+      },
+      definitionTransitions: {
         melt: [{ from: 'solid', to: 'liquid' }],
         foo: [{ from: 'plasma', to: 'gas' }]
       }
@@ -122,10 +203,11 @@ describe('state machine definition utils', () => {
       name: 'matter',
       initialState: 'solid',
       states: {
-        gas: { label: 'foo' },
-        solid: { label: 'bar' }
+        gas: 'gas',
+        solid: 'solid'
       },
-      transitions: {}
+      transitions: {},
+      definitionTransitions: {}
     }
     const definitionWrapper = createFsmDefinitionWrapper(definition)
     const isValid = definitionWrapper.isValidStateName('gas')
@@ -138,10 +220,15 @@ describe('state machine definition utils', () => {
       name: 'matter',
       initialState: 'solid',
       states: {
+        gas: 'gas',
+        solid: 'solid'
+      },
+      statesMeta: {
         gas: { label: 'foo' },
         solid: { label: 'bar' }
       },
-      transitions: {}
+      transitions: {},
+      definitionTransitions: {}
     }
     const definitionWrapper = createFsmDefinitionWrapper(definition)
     const isValid = definitionWrapper.isValidStateName('plasma')
@@ -153,10 +240,11 @@ describe('state machine definition utils', () => {
       name: 'matter',
       initialState: 'solid',
       states: {
-        gas: { label: 'foo' },
-        solid: { label: 'bar' }
+        gas: 'gas',
+        solid: 'solid'
       },
-      transitions: {}
+      transitions: {},
+      definitionTransitions: {}
     }
     const definitionWrapper = createFsmDefinitionWrapper(definition)
     let thrownError
@@ -173,9 +261,10 @@ describe('state machine definition utils', () => {
       name: 'matter',
       initialState: 'solid',
       states: {
-        solid: { label: 'bar' }
+        solid: 'solid'
       },
-      transitions: {}
+      transitions: {},
+      definitionTransitions: {}
     }
     const definitionWrapper = createFsmDefinitionWrapper(definition)
     const isValid = definitionWrapper.isValidStateName('gas')

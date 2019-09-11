@@ -20,7 +20,7 @@ let suiteRunId
 let mongoDatabase
 let redisClient
 
-const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mem'
+const STORAGE_TYPE = process.env.STORAGE_TYPE || 'mongodb'
 
 beforeEach(async () => {
   suiteRunId = `${uuid.v4()}`

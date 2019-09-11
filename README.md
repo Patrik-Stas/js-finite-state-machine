@@ -1,34 +1,17 @@
-# Javascript Finite State Machine
-Finite State Machines (FSMs) with modular state persistence. 
-
-It can also generate cool pictures of your state machines. Like this `-------->`
-<img align="right" src="docs/semaphore.png">
-
-- **Where do you want to store state of your state machines?** Memory? Redis? Mongo? 
-Elsewhere? Wherever you like!
-
-- **How do you want to manage and identify your state machines?** Single key? 
-Multiple keys? Ordered set? However you like.
+# Mongo stored Finite State Machines
+Finite State Machines (FSMs) stored in Mongo.  
 
 The usage of this module is straightforward:
 1. specify your machine model,
-2. pick preferred storage for your machines (memory, mongo, redis),
-3. create new or load pre-existing machine instance ,
-4. perform transitions and have the state automatically updated in the storage.
+2. create new or load pre-existing machine instance,
+3. perform transitions and have the state automatically updated in the storage.
 
-The state machine can work with any data layer and this module comes with batteries 
-included. 3 storage implementations are included in the module
-- mongodb (the main and the most complete implementation)
-- memory  (missing capability to query all machines with filters and paging)
-- redis   (missing capability to query all machines with filters and paging)
-
-Each of these identifies machines by single id value. However, it's easy to implement storage
-strategy which would identify machines differently.
-
+By the way, the library can also render your machine models, like this `-------->`
+<img align="right" src="docs/semaphore.png">
 ---
 
 # Installation
-Note the version `2.0.0-rc.X` is not yet 100% stable and a few breaking changes are possible.  
+Note the version `3.0.0-rc.X` is not yet 100% stable and breaking changes are possible.  
 ```
 npm install @patrikstas/finite-state-machine
 ```
@@ -58,12 +41,23 @@ const semaphoreDefinition = {
   type: 'semaphore',
   initialState: 'off',
   states: {
+    off: 'off', 
+    red: 'red', 
+    orange: 'orange', 
+    green: 'green' 
+  },
+  transitions: {
+    next: 'next',
+    disable: 'disable',
+    enable: 'enable'
+  },
+  definitionStates: {
     off:    { metadata: { 'can-pass': false } },
     red:    { metadata: { 'can-pass': false } },
     orange: { metadata: { 'can-pass': false } },
     green:  { metadata: { 'can-pass': true } }
   },
-  transitions: {
+  definitionTransitions: {
     next: [
       { from: 'red',    to: 'orange' },
       { from: 'orange', to: 'green' },
@@ -79,7 +73,7 @@ const semaphoreDefinition = {
   }
 }
 ```
-See in code at [docs/semaphore.js](docs/semaphore.js)
+See in code at [docs/semaphore.js](docs/semaphore.js). 
 
 ## Creating / Loading state machines
 In general you are supposed to create and load FSM(s) (Finite State Machine(s)) using `FSM Manager`. It 
