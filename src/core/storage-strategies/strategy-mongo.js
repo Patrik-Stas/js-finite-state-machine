@@ -1,4 +1,9 @@
 module.exports.createStrategyMongo = function createStrategyMongo (mdbCollection) {
+
+  mdbCollection.createIndex({ 'fsmData.utimeCreated': -1 })
+  mdbCollection.createIndex({ 'fsmData.utimeUpdated': -1 })
+  mdbCollection.createIndex({ 'fsmData.state': 1 })
+
   async function fsmDataSave (fsmId, fsmData) {
     await mdbCollection.updateOne(
       { fsmId },
